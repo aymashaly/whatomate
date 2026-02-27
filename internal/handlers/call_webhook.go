@@ -172,9 +172,10 @@ func (a *App) processCallWebhook(phoneNumberID string, call interface{}) {
 		}
 
 		a.DB.Model(callLog).Updates(map[string]any{
-			"status":   finalStatus,
-			"ended_at": now,
-			"duration": duration,
+			"status":          finalStatus,
+			"ended_at":        now,
+			"duration":        duration,
+			"disconnected_by": models.DisconnectedByClient,
 		})
 
 		// Notify CallManager to clean up
@@ -183,17 +184,19 @@ func (a *App) processCallWebhook(phoneNumberID string, call interface{}) {
 		}
 
 		a.broadcastCallEvent(account.OrganizationID, websocket.TypeCallEnded, map[string]any{
-			"call_id":    ce.ID,
-			"contact_id": contact.ID.String(),
-			"status":     string(finalStatus),
-			"duration":   duration,
-			"ended_at":   now.Format(time.RFC3339),
+			"call_id":         ce.ID,
+			"contact_id":      contact.ID.String(),
+			"status":          string(finalStatus),
+			"duration":        duration,
+			"ended_at":        now.Format(time.RFC3339),
+			"disconnected_by": "client",
 		})
 
 	case "missed", "unanswered":
 		a.DB.Model(callLog).Updates(map[string]any{
-			"status":   models.CallStatusMissed,
-			"ended_at": now,
+			"status":          models.CallStatusMissed,
+			"ended_at":        now,
+			"disconnected_by": models.DisconnectedByClient,
 		})
 
 		a.broadcastCallEvent(account.OrganizationID, websocket.TypeCallEnded, map[string]any{
@@ -212,9 +215,10 @@ func (a *App) processCallWebhook(phoneNumberID string, call interface{}) {
 		a.DB.Model(&models.CallLog{}).
 			Where("whatsapp_call_id = ? AND organization_id = ?", ce.ID, account.OrganizationID).
 			Updates(map[string]any{
-				"status":        models.CallStatusFailed,
-				"error_message": ce.Error.Message,
-				"ended_at":      now,
+				"status":          models.CallStatusFailed,
+				"error_message":   ce.Error.Message,
+				"ended_at":        now,
+				"disconnected_by": models.DisconnectedBySystem,
 			})
 	}
 }
@@ -279,8 +283,9 @@ func (a *App) handleOrphanedOutgoingCallEvent(phoneNumberID, callID, event strin
 		}
 
 		updates := map[string]any{
-			"status":   finalStatus,
-			"ended_at": now,
+			"status":          finalStatus,
+			"ended_at":        now,
+			"disconnected_by": models.DisconnectedByClient,
 		}
 		if duration > 0 {
 			updates["duration"] = duration
