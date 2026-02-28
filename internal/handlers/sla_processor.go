@@ -153,7 +153,7 @@ func (p *SLAProcessor) autoCloseExpiredTransfers(orgID uuid.UUID, settings model
 		)
 
 		// Broadcast update
-		p.broadcastTransferUpdate(transfer, string(models.TransferStatusExpired))
+		p.broadcastTransferUpdate(transfer, websocket.TypeTransferExpired)
 	}
 
 	if closedCount > 0 {
@@ -226,7 +226,7 @@ func (p *SLAProcessor) escalateTransfers(orgID uuid.UUID, settings models.Chatbo
 		p.notifyEscalation(transfer, settings, newLevel)
 
 		// Broadcast update
-		p.broadcastTransferUpdate(transfer, "escalated")
+		p.broadcastTransferUpdate(transfer, websocket.TypeTransferEscalated)
 
 		// Send warning message to customer if configured
 		if newLevel == 1 && settings.SLA.WarningMessage != "" {
@@ -282,19 +282,22 @@ func (p *SLAProcessor) notifyEscalation(transfer models.AgentTransfer, settings 
 	// Escalation contacts will receive this via the org-wide broadcast
 	contactName, phoneNumber := p.app.MaskContactFields(transfer.OrganizationID, contact.ProfileName, contact.PhoneNumber)
 
+	payload := map[string]interface{}{
+		"id":                    transfer.ID.String(),
+		"contact_id":            transfer.ContactID.String(),
+		"contact_name":          contactName,
+		"phone_number":          phoneNumber,
+		"escalation_level":      level,
+		"level_name":            levelName,
+		"waiting_since":         transfer.TransferredAt.Format(time.RFC3339),
+		"escalation_notify_ids": settings.SLA.EscalationNotifyIDs,
+	}
+	if transfer.TeamID != nil {
+		payload["team_id"] = transfer.TeamID.String()
+	}
 	p.app.WSHub.BroadcastToOrg(transfer.OrganizationID, websocket.WSMessage{
-		Type: "transfer_escalation",
-		Payload: map[string]interface{}{
-			"transfer_id":           transfer.ID.String(),
-			"contact_id":            transfer.ContactID.String(),
-			"contact_name":          contactName,
-			"phone_number":          phoneNumber,
-			"escalation_level":      level,
-			"level_name":            levelName,
-			"waiting_since":         transfer.TransferredAt.Format(time.RFC3339),
-			"team_id":               transfer.TeamID,
-			"escalation_notify_ids": settings.SLA.EscalationNotifyIDs,
-		},
+		Type:    websocket.TypeTransferEscalation,
+		Payload: payload,
 	})
 
 	p.app.Log.Info("Escalation notification sent",
@@ -335,7 +338,7 @@ func (p *SLAProcessor) sendSLATextToCustomer(transfer models.AgentTransfer, labe
 }
 
 // broadcastTransferUpdate broadcasts transfer update via WebSocket
-func (p *SLAProcessor) broadcastTransferUpdate(transfer models.AgentTransfer, eventType string) {
+func (p *SLAProcessor) broadcastTransferUpdate(transfer models.AgentTransfer, wsType string) {
 	// Get contact info
 	var contact models.Contact
 	p.app.DB.Where("id = ?", transfer.ContactID).First(&contact)
@@ -343,7 +346,7 @@ func (p *SLAProcessor) broadcastTransferUpdate(transfer models.AgentTransfer, ev
 	contactName, phoneNumber := p.app.MaskContactFields(transfer.OrganizationID, contact.ProfileName, contact.PhoneNumber)
 
 	p.app.WSHub.BroadcastToOrg(transfer.OrganizationID, websocket.WSMessage{
-		Type: "transfer_" + eventType,
+		Type: wsType,
 		Payload: map[string]interface{}{
 			"id":               transfer.ID.String(),
 			"contact_id":       transfer.ContactID.String(),

@@ -129,19 +129,10 @@ func (m *Manager) ConnectAgentToTransfer(transferID, agentID uuid.UUID, sdpOffer
 	}
 
 	// Create local audio track (server → agent: caller's voice will be forwarded here)
-	agentAudioTrack, err := webrtc.NewTrackLocalStaticRTP(
-		webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus},
-		"audio",
-		"caller-audio",
-	)
+	agentAudioTrack, err := createOpusTrack(agentPC, "caller-audio")
 	if err != nil {
 		_ = agentPC.Close()
 		return "", fmt.Errorf("failed to create agent audio track: %w", err)
-	}
-
-	if _, err := agentPC.AddTrack(agentAudioTrack); err != nil {
-		_ = agentPC.Close()
-		return "", fmt.Errorf("failed to add agent audio track: %w", err)
 	}
 
 	// Channel to signal when agent's remote track (mic) is available
@@ -189,19 +180,11 @@ func (m *Manager) ConnectAgentToTransfer(transferID, agentID uuid.UUID, sdpOffer
 		return "", fmt.Errorf("failed to set agent local description: %w", err)
 	}
 
-	// Wait for ICE gathering
-	gatherComplete := webrtc.GatheringCompletePromise(agentPC)
-	select {
-	case <-gatherComplete:
-	case <-time.After(5 * time.Second):
+	// Wait for ICE gathering (15s, consistent with other call flows)
+	localDesc, err := waitForICEGathering(agentPC, 15*time.Second)
+	if err != nil {
 		_ = agentPC.Close()
-		return "", fmt.Errorf("ICE gathering timed out for agent")
-	}
-
-	localDesc := agentPC.LocalDescription()
-	if localDesc == nil {
-		_ = agentPC.Close()
-		return "", fmt.Errorf("no local description available for agent")
+		return "", fmt.Errorf("agent ICE gathering: %w", err)
 	}
 
 	// Store agent PC in session

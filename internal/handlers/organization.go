@@ -168,6 +168,15 @@ func (a *App) IsCallingEnabledForOrg(orgID interface{}) bool {
 	return false
 }
 
+// requireCallingEnabled checks if calling is enabled for the org and returns an error
+// envelope if not. Returns nil when calling is enabled and the handler can proceed.
+func (a *App) requireCallingEnabled(r *fastglue.Request, orgID uuid.UUID) error {
+	if !a.IsCallingEnabledForOrg(orgID) {
+		return r.SendErrorEnvelope(fasthttp.StatusServiceUnavailable, "Calling is not enabled for this organization", nil, "")
+	}
+	return nil
+}
+
 // GetOrgCallingConfig returns org-level calling config values, falling back to global defaults.
 func (a *App) GetOrgCallingConfig(orgID interface{}) (maxDuration, transferTimeout int) {
 	maxDuration = callingConfigDefault(a.Config.Calling.MaxCallDuration, 3600)
