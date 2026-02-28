@@ -833,9 +833,9 @@ func (a *App) PickNextTransfer(r *fastglue.Request) error {
 		a.Log.Error("Failed to load chatbot settings for queue pickup check", "error", err, "org_id", orgID)
 	}
 
-	// Users without full access need pickup permission and AllowQueuePickup setting enabled.
-	// If settings failed to load, deny pickup for non-admin users (fail closed).
-	if !hasFullAccess && (settings == nil || !settings.AgentAssignment.AllowQueuePickup) {
+	// Users without full access need AllowQueuePickup enabled when settings exist.
+	// If settings haven't been configured yet (nil), allow pickup by default.
+	if !hasFullAccess && settings != nil && !settings.AgentAssignment.AllowQueuePickup {
 		return r.SendErrorEnvelope(fasthttp.StatusForbidden, "Queue pickup is not allowed", nil, "")
 	}
 
