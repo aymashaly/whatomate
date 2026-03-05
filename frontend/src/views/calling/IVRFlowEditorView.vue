@@ -10,6 +10,7 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 import { useCallingStore } from '@/stores/calling'
+import { useTeamsStore } from '@/stores/teams'
 import { ivrFlowsService, type IVRNode, type IVREdge, type IVRFlowData, type IVRNodeType } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +31,7 @@ import HangupNode from '@/components/calling/nodes/HangupNode.vue'
 const route = useRoute()
 const router = useRouter()
 const callingStore = useCallingStore()
+const teamsStore = useTeamsStore()
 
 const flowId = computed(() => route.params.id as string)
 const flowName = ref('')
@@ -279,12 +281,25 @@ async function saveFlow() {
   saving.value = true
   try {
     const flowData = toFlowData()
-    await callingStore.updateIVRFlow(flowId.value, {
+    const updated = await callingStore.updateIVRFlow(flowId.value, {
       name: flowName.value,
       is_active: isActive.value,
       is_call_start: isCallStart.value,
       menu: flowData,
     })
+
+    // Sync server-generated fields (e.g. TTS audio_file) back to canvas nodes
+    const serverMenu = updated?.menu as IVRFlowData | undefined
+    if (serverMenu?.nodes) {
+      const serverConfigs = new Map(serverMenu.nodes.map((n: IVRNode) => [n.id, n.config]))
+      for (const node of nodes.value) {
+        const serverConfig = serverConfigs.get(node.id)
+        if (serverConfig) {
+          node.data = { ...node.data, config: serverConfig }
+        }
+      }
+    }
+
     toast.success('Flow saved')
   } catch (e: any) {
     const msg = e?.response?.data?.message || 'Save failed'
@@ -311,7 +326,7 @@ const selectedIVRNode = computed<IVRNode | null>(() => {
 onMounted(async () => {
   loading.value = true
   try {
-    await callingStore.fetchIVRFlows()
+    await Promise.all([callingStore.fetchIVRFlows(), teamsStore.fetchTeams()])
     const res = await ivrFlowsService.get(flowId.value)
     const flow = (res.data as any)?.data || res.data
     flowName.value = flow.name

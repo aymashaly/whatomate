@@ -2,12 +2,19 @@
 import { computed } from 'vue'
 import { Users } from 'lucide-vue-next'
 import BaseNode from './BaseNode.vue'
+import { useTeamsStore } from '@/stores/teams'
 
 defineOptions({ inheritAttrs: false })
 
-const props = defineProps<{ data: Record<string, any>; teamName?: string }>()
+const props = defineProps<{ data: Record<string, any> }>()
+const teamsStore = useTeamsStore()
 
-const summary = computed(() => props.teamName || props.data?.config?.team_id || 'No team')
+const summary = computed(() => {
+  const teamId = props.data?.config?.team_id
+  if (!teamId) return 'No team'
+  const team = teamsStore.teams.find(t => t.id === teamId)
+  return team?.name || 'No team'
+})
 </script>
 
 <template>
