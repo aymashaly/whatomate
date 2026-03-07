@@ -394,7 +394,7 @@ const greetingTab = computed(() =>
             type="time"
             :model-value="entry.start_time"
             @update:model-value="(v: string) => updateScheduleEntry(Number(idx), 'start_time', v)"
-            class="h-6 text-xs w-20"
+            class="h-8 text-xs w-28"
           />
           <span v-if="entry.enabled" class="text-muted-foreground">-</span>
           <Input
@@ -402,7 +402,7 @@ const greetingTab = computed(() =>
             type="time"
             :model-value="entry.end_time"
             @update:model-value="(v: string) => updateScheduleEntry(Number(idx), 'end_time', v)"
-            class="h-6 text-xs w-20"
+            class="h-8 text-xs w-28"
           />
         </div>
       </div>
