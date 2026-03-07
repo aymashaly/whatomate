@@ -37,6 +37,11 @@ func (p *AudioPlayer) SetSequence(seq uint16, ts uint32) {
 	p.timestamp = ts + 960 // one frame ahead
 }
 
+// Sequence returns the player's current RTP sequence number and timestamp.
+func (p *AudioPlayer) Sequence() (uint16, uint32) {
+	return p.sequenceNumber, p.timestamp
+}
+
 // PlayFile plays an OGG/Opus audio file into the WebRTC track.
 // It parses the OGG container, splits pages into individual Opus packets
 // using the segment table, and sends each as a properly timed RTP packet.

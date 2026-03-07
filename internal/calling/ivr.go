@@ -126,8 +126,15 @@ func (m *Manager) executeNodeLoop(session *CallSession, waAccount *whatsapp.Acco
 			ctx.Path = append(ctx.Path, map[string]string{
 				"node": node.ID, "type": string(node.Type), "label": node.Label,
 			})
-			m.executeTransfer(session, node, ctx)
-			return // terminal
+			outcome = m.executeTransfer(session, node, ctx, graph)
+			if outcome == "" {
+				return // terminal — no next node
+			}
+			// Transfer created a fresh IVRPlayer — pick it up so subsequent
+			// nodes use the correct RTP sequence.
+			session.mu.Lock()
+			player = session.IVRPlayer
+			session.mu.Unlock()
 		case IVRNodeGotoFlow:
 			ctx.Path = append(ctx.Path, map[string]string{
 				"node": node.ID, "type": string(node.Type), "label": node.Label,
@@ -392,11 +399,50 @@ func (m *Manager) executeHTTPCallback(session *CallSession, node *IVRNode, ctx *
 	return "http:non2xx"
 }
 
-// executeTransfer routes the call to an agent team. Terminal.
-func (m *Manager) executeTransfer(session *CallSession, node *IVRNode, ctx *IVRContext) {
+// executeTransfer routes the call to an agent team. If the transfer node has
+// outgoing edges in the graph it blocks until the transfer completes and
+// returns the outcome ("completed", "no_answer", "abandoned") so the IVR loop
+// can continue. When there are no outgoing edges it behaves as before (terminal,
+// returns "").
+func (m *Manager) executeTransfer(session *CallSession, node *IVRNode, ctx *IVRContext, graph *IVRFlowGraph) string {
 	teamID, _ := node.Config["team_id"].(string)
 	m.saveIVRPath(session, ctx.Path)
+
+	// Check if this transfer node has any outgoing edges — if not, terminal.
+	edges := graph.edgeMap[node.ID]
+	if len(edges) == 0 {
+		m.initiateTransfer(session, session.AccountName, teamID, ctx.Path)
+		return "" // terminal
+	}
+
+	// Non-terminal: create TransferDone channel so EndTransfer/timeout/hangup
+	// can signal us instead of tearing down the session.
+	transferDone := make(chan string, 1)
+	session.mu.Lock()
+	session.TransferDone = transferDone
+	session.mu.Unlock()
+
 	m.initiateTransfer(session, session.AccountName, teamID, ctx.Path)
+
+	// Block until the transfer completes (or the channel is closed during cleanup).
+	outcome, ok := <-transferDone
+	if !ok || outcome == "" {
+		outcome = "completed"
+	}
+
+	m.log.Info("Transfer done, resuming IVR", "call_id", session.ID, "outcome", outcome)
+
+	// Create a fresh IVRPlayer for post-transfer audio. EndTransfer saved
+	// the last RTP seq/ts from the bridge so we can continue from there.
+	session.mu.Lock()
+	player := NewAudioPlayer(session.AudioTrack)
+	if session.LastRTPSeq > 0 {
+		player.SetSequence(session.LastRTPSeq, session.LastRTPTimestamp)
+	}
+	session.IVRPlayer = player
+	session.mu.Unlock()
+
+	return outcome
 }
 
 // executeGotoFlow jumps to another IVR flow. Terminal.

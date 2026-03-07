@@ -696,7 +696,7 @@ func validateFlowGraph(menu models.JSONB) error {
 	// Build node ID set and terminal node set
 	nodeIDs := make(map[string]bool, len(nodesSlice))
 	terminalNodes := make(map[string]bool)
-	terminalTypes := map[string]bool{"transfer": true, "goto_flow": true, "hangup": true}
+	terminalTypes := map[string]bool{"goto_flow": true, "hangup": true}
 
 	for _, nodeRaw := range nodesSlice {
 		nodeMap, ok := nodeRaw.(map[string]interface{})

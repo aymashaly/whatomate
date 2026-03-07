@@ -51,6 +51,9 @@ type CallSession struct {
 	HoldPlayer        *AudioPlayer
 	TransferCancel    context.CancelFunc
 	BridgeStarted     chan struct{} // closed when bridge takes over caller track
+	TransferDone      chan string   // outcome sent when transfer ends; nil = terminal
+	LastRTPSeq        uint16       // last RTP seq from bridge, for post-transfer player
+	LastRTPTimestamp   uint32       // last RTP timestamp from bridge
 
 	// Ringback (outgoing calls)
 	RingbackPlayer *AudioPlayer
@@ -399,8 +402,15 @@ func (m *Manager) cleanupSession(callID string) {
 	session.DTMFBuffer = nil
 	recorder := session.Recorder
 	session.Recorder = nil
+	transferDone := session.TransferDone
+	session.TransferDone = nil
 
 	session.mu.Unlock()
+
+	// Close TransferDone to unblock any waiting IVR goroutine
+	if transferDone != nil {
+		close(transferDone)
+	}
 
 	// DB operations and broadcasts (outside lock)
 	if transferID != uuid.Nil && transferStatus == models.CallTransferStatusWaiting {

@@ -508,12 +508,28 @@ func (m *Manager) EndTransfer(transferID uuid.UUID) {
 	session.AgentPC = nil
 	session.mu.Unlock()
 
-	// Stop/close resources outside lock
+	// Stop/close resources outside lock.
+	// Save last RTP seq so the post-transfer IVR player can continue
+	// from the correct sequence number. Use hold player first (always
+	// present), then override with bridge if an agent was connected.
+	if holdPlayer != nil {
+		seq, ts := holdPlayer.Sequence()
+		session.mu.Lock()
+		session.LastRTPSeq = seq
+		session.LastRTPTimestamp = ts
+		session.mu.Unlock()
+		holdPlayer.Stop()
+	}
 	if bridge != nil {
 		bridge.Stop()
-	}
-	if holdPlayer != nil {
-		holdPlayer.Stop()
+		bridge.Wait() // Wait for goroutines to finish so lastCallerSeq is final.
+		seq, ts := bridge.LastCallerSeq()
+		if seq > 0 {
+			session.mu.Lock()
+			session.LastRTPSeq = seq
+			session.LastRTPTimestamp = ts
+			session.mu.Unlock()
+		}
 	}
 	if transferCancel != nil {
 		transferCancel()
@@ -559,11 +575,32 @@ func (m *Manager) EndTransfer(transferID uuid.UUID) {
 		"talk_duration", talkDuration,
 	)
 
-	// Terminate the WhatsApp call so the caller's phone also disconnects
-	m.terminateCallBySession(session)
+	// If the IVR loop is waiting to resume after transfer, signal it
+	// instead of tearing down the session.
+	session.mu.Lock()
+	transferDone := session.TransferDone
+	session.TransferDone = nil
+	session.mu.Unlock()
 
-	// Clean up the whole call session
-	m.cleanupSession(session.ID)
+	if transferDone != nil {
+		// Reset BridgeStarted and restart caller track consumption so
+		// Pion's receive buffer doesn't fill up (same pattern as
+		// InitiateAgentTransfer). Use consumeAudioWithDTMF so that
+		// post-transfer IVR nodes (menu, gather) can receive DTMF.
+		session.mu.Lock()
+		session.BridgeStarted = make(chan struct{})
+		callerRemote := session.CallerRemoteTrack
+		session.mu.Unlock()
+		if callerRemote != nil {
+			go m.consumeAudioWithDTMF(session, callerRemote)
+		}
+
+		transferDone <- "completed"
+	} else {
+		// Terminal transfer — terminate the WhatsApp call and clean up.
+		m.terminateCallBySession(session)
+		m.cleanupSession(session.ID)
+	}
 }
 
 // waitForTransferTimeout marks the transfer as no_answer if nobody accepts in time.
@@ -596,9 +633,12 @@ func (m *Manager) waitForTransferTimeout(ctx context.Context, session *CallSessi
 		Where("id = ?", session.CallLogID).
 		Update("disconnected_by", models.DisconnectedBySystem)
 
-	// Stop hold music
+	// Stop hold music and save RTP seq for post-transfer IVR player
 	session.mu.Lock()
 	if session.HoldPlayer != nil {
+		seq, ts := session.HoldPlayer.Sequence()
+		session.LastRTPSeq = seq
+		session.LastRTPTimestamp = ts
 		session.HoldPlayer.Stop()
 	}
 	session.mu.Unlock()
@@ -611,8 +651,27 @@ func (m *Manager) waitForTransferTimeout(ctx context.Context, session *CallSessi
 
 	m.log.Info("Call transfer timed out", "transfer_id", transferID)
 
-	// Clean up the session (terminates WhatsApp call via cleanupSession)
-	m.cleanupSession(session.ID)
+	// If the IVR loop is waiting to resume, signal it instead of cleaning up.
+	session.mu.Lock()
+	transferDone := session.TransferDone
+	session.TransferDone = nil
+	session.mu.Unlock()
+
+	if transferDone != nil {
+		// Restart caller track consumption with DTMF detection for
+		// post-transfer IVR nodes.
+		session.mu.Lock()
+		session.BridgeStarted = make(chan struct{})
+		callerRemote := session.CallerRemoteTrack
+		session.mu.Unlock()
+		if callerRemote != nil {
+			go m.consumeAudioWithDTMF(session, callerRemote)
+		}
+
+		transferDone <- "no_answer"
+	} else {
+		m.cleanupSession(session.ID)
+	}
 }
 
 // HandleCallerHangupDuringTransfer handles the case where the caller hangs up while waiting.
@@ -657,8 +716,19 @@ func (m *Manager) HandleCallerHangupDuringTransfer(session *CallSession) {
 
 	m.log.Info("Call transfer abandoned (caller hung up)", "transfer_id", transferID)
 
-	// Now that TransferStatus is no longer Waiting, cleanupSession will proceed.
-	m.cleanupSession(session.ID)
+	// If the IVR loop is waiting to resume, signal it. The next node's audio
+	// write will fail (caller disconnected), so the loop breaks naturally.
+	session.mu.Lock()
+	transferDone := session.TransferDone
+	session.TransferDone = nil
+	session.mu.Unlock()
+
+	if transferDone != nil {
+		transferDone <- "abandoned"
+	} else {
+		// Now that TransferStatus is no longer Waiting, cleanupSession will proceed.
+		m.cleanupSession(session.ID)
+	}
 }
 
 // findSessionByTransferID looks up a session by its transfer ID.
