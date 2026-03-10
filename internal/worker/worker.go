@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -245,25 +246,45 @@ func (w *Worker) sendTemplateMessage(ctx context.Context, account *models.WhatsA
 	var components []map[string]interface{}
 
 	// Handle header component (for media templates)
-	if template.HeaderType != "" && template.HeaderType != "TEXT" {
-		// Use campaign's uploaded media ID if available
+	if template.HeaderType != "" && template.HeaderType != "TEXT" && template.HeaderType != "NONE" {
+		var headerParam map[string]interface{}
+		
+		// Priority 1: Use campaign's uploaded media ID if available
 		if campaignHeaderMediaID != "" {
-			headerParam := buildMediaParameter(template.HeaderType, "id", campaignHeaderMediaID)
-			if headerParam != nil {
-				components = append(components, map[string]interface{}{
-					"type":       "header",
-					"parameters": []map[string]interface{}{headerParam},
-				})
+			// Check if campaign media is a URL or a media ID
+			if strings.HasPrefix(campaignHeaderMediaID, "http://") || strings.HasPrefix(campaignHeaderMediaID, "https://") {
+				// It's a URL, use link
+				headerParam = buildMediaParameter(template.HeaderType, "link", campaignHeaderMediaID)
+			} else {
+				// It's a media ID, use id
+				headerParam = buildMediaParameter(template.HeaderType, "id", campaignHeaderMediaID)
 			}
 		} else if template.HeaderContent != "" {
-			// Fall back to template's header content (URL)
-			headerParam := buildMediaParameter(template.HeaderType, "link", template.HeaderContent)
-			if headerParam != nil {
-				components = append(components, map[string]interface{}{
-					"type":       "header",
-					"parameters": []map[string]interface{}{headerParam},
-				})
+			// Priority 2: Use template's header content
+			// Check if it's a URL (starts with http) or a handle
+			if strings.HasPrefix(template.HeaderContent, "http://") || strings.HasPrefix(template.HeaderContent, "https://") {
+				// It's a URL, use link
+				headerParam = buildMediaParameter(template.HeaderType, "link", template.HeaderContent)
+			} else {
+				// It's a handle from Meta's resumable upload, use id
+				headerParam = buildMediaParameter(template.HeaderType, "id", template.HeaderContent)
 			}
+		}
+		
+		// Only add header component if we have valid media
+		if headerParam != nil {
+			components = append(components, map[string]interface{}{
+				"type":       "header",
+				"parameters": []map[string]interface{}{headerParam},
+			})
+		} else {
+			// Log warning if template requires media but none provided
+			w.Log.Warn("Template requires media header but no media provided",
+				"template_id", template.ID,
+				"template_name", template.Name,
+				"header_type", template.HeaderType,
+				"campaign_media_id", campaignHeaderMediaID,
+				"template_header_content", template.HeaderContent)
 		}
 	}
 

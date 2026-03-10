@@ -801,12 +801,13 @@ function formatPreview(text: string, samples: any[]): string {
                         <CommandItem
                           v-for="lang in languages"
                           :key="lang.code"
-                          :value="lang.name"
-                          class="flex items-center gap-2 cursor-pointer"
-                          @select="formData.language = lang.code; languageSelectorOpen = false"
+                          :value="lang.code"
+                          @select="() => { formData.language = lang.code; languageSelectorOpen = false }"
                         >
-                          <span class="flex-1">{{ lang.name }}</span>
-                          <Check v-if="formData.language === lang.code" class="h-4 w-4 text-primary" />
+                          <Check
+                            :class="['mr-2 h-4 w-4', formData.language === lang.code ? 'opacity-100' : 'opacity-0']"
+                          />
+                          {{ lang.name }}
                         </CommandItem>
                       </CommandGroup>
                     </CommandList>
@@ -818,224 +819,175 @@ function formatPreview(text: string, samples: any[]): string {
             <!-- Category -->
             <div class="space-y-2">
               <Label>{{ $t('templates.category') }} <span class="text-destructive">*</span></Label>
-              <select
-                v-model="formData.category"
-                class="w-full h-10 rounded-md border bg-background px-3 disabled:cursor-not-allowed disabled:opacity-50"
-                :disabled="!!editingTemplate"
-              >
-                <option v-for="cat in categories" :key="cat.value" :value="cat.value">
-                  {{ cat.label }} - {{ cat.description }}
-                </option>
-              </select>
+              <Select v-model="formData.category">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="cat in categories" :key="cat.value" :value="cat.value">
+                    <div>
+                      <div class="font-medium">{{ cat.label }}</div>
+                      <div class="text-xs text-muted-foreground">{{ cat.description }}</div>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          <Separator />
-
-          <!-- Header -->
+          <!-- Header Type -->
           <div class="space-y-2">
             <Label>{{ $t('templates.headerType') }}</Label>
-            <select v-model="formData.header_type" class="w-full h-10 rounded-md border bg-background px-3">
-              <option v-for="type in headerTypes" :key="type.value" :value="type.value">
-                {{ type.label }}
-              </option>
-            </select>
+            <Select v-model="formData.header_type">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="type in headerTypes" :key="type.value" :value="type.value">
+                  {{ type.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
+          <!-- Header Content (Text) -->
           <div v-if="formData.header_type === 'TEXT'" class="space-y-2">
             <Label>{{ $t('templates.headerText') }}</Label>
-            <Input v-model="formData.header_content" :placeholder="$t('templates.headerTextPlaceholder') + '...'" />
+            <Input v-model="formData.header_content" :placeholder="$t('templates.headerTextPlaceholder')" />
           </div>
 
-          <!-- Header Media Upload for IMAGE/VIDEO/DOCUMENT -->
-          <div v-else-if="['IMAGE', 'VIDEO', 'DOCUMENT'].includes(formData.header_type)" class="space-y-3">
-            <Label>{{ $t('templates.headerSample') }} {{ formData.header_type.toLowerCase() }}</Label>
-            <p class="text-xs text-muted-foreground">
-              {{ $t('templates.uploadSampleHint', { type: formData.header_type.toLowerCase() }) }}
-            </p>
-
+          <!-- Header Media Upload (Image/Video/Document) -->
+          <div v-if="formData.header_type !== 'NONE' && formData.header_type !== 'TEXT'" class="space-y-2">
+            <Label>{{ $t('templates.headerMedia') }}</Label>
             <div class="flex items-center gap-2">
-              <div class="flex-1">
-                <input
-                  type="file"
-                  :accept="getAcceptedFileTypes()"
-                  @change="onHeaderMediaFileChange"
-                  class="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-                />
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                @click="uploadHeaderMedia"
-                :disabled="!headerMediaFile || headerMediaUploading || !formData.whatsapp_account"
-              >
-                <Loader2 v-if="headerMediaUploading" class="h-4 w-4 mr-1 animate-spin" />
-                <Upload v-else class="h-4 w-4 mr-1" />
-                {{ $t('templates.uploadMedia') }}
-              </Button>
-            </div>
-
-            <!-- Show upload status -->
-            <div v-if="headerMediaFilename && !headerMediaHandle" class="text-sm text-muted-foreground">
-              {{ $t('templates.selectedFile', { filename: headerMediaFilename }) }}
-            </div>
-
-            <!-- Show uploaded handle -->
-            <div v-if="headerMediaHandle" class="bg-green-950 light:bg-green-50 border border-green-800 light:border-green-200 rounded-lg p-3">
-              <div class="flex items-center gap-2">
-                <Check class="h-4 w-4 text-green-600" />
-                <span class="text-sm text-green-200 light:text-green-800">{{ $t('templates.mediaUploadedSuccess') }}</span>
-              </div>
-              <p class="text-xs text-muted-foreground mt-1 font-mono truncate">
-                Handle: {{ headerMediaHandle.substring(0, 40) }}...
-              </p>
-            </div>
-
-            <!-- Accepted formats hint -->
-            <p class="text-xs text-muted-foreground">
-              <span v-if="formData.header_type === 'IMAGE'">{{ $t('templates.imageFormats') }}</span>
-              <span v-else-if="formData.header_type === 'VIDEO'">{{ $t('templates.videoFormats') }}</span>
-              <span v-else-if="formData.header_type === 'DOCUMENT'">{{ $t('templates.documentFormats') }}</span>
-            </p>
-          </div>
-
-          <!-- Body -->
-          <div class="space-y-2">
-            <Label>{{ $t('templates.bodyContent') }} <span class="text-destructive">*</span></Label>
-            <Textarea
-              v-model="formData.body_content"
-              :placeholder="$t('templates.bodyPlaceholder')"
-              :rows="4"
-            />
-            <p class="text-xs text-muted-foreground">
-              {{ $t('templates.bodyVariablesHint') }}
-            </p>
-          </div>
-
-          <!-- Footer -->
-          <div class="space-y-2">
-            <Label>{{ $t('templates.footerOptional') }}</Label>
-            <Input v-model="formData.footer_content" :placeholder="$t('templates.footerPlaceholder')" />
-          </div>
-
-          <Separator />
-
-          <!-- Buttons -->
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <Label>{{ $t('templates.buttonsOptional') }}</Label>
+              <Input
+                type="file"
+                :accept="getAcceptedFileTypes()"
+                @change="onHeaderMediaFileChange"
+                class="flex-1"
+              />
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                @click="addButton"
-                :disabled="formData.buttons.length >= 3"
+                @click="uploadHeaderMedia"
+                :disabled="!headerMediaFile || headerMediaUploading || !formData.whatsapp_account"
               >
-                <Plus class="h-4 w-4 mr-1" />
+                <Loader2 v-if="headerMediaUploading" class="h-4 w-4 mr-2 animate-spin" />
+                <Upload v-else class="h-4 w-4 mr-2" />
+                {{ $t('templates.upload') }}
+              </Button>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              {{ $t('templates.uploadMediaHint') }}
+            </p>
+            <div v-if="headerMediaHandle" class="flex items-center gap-2 text-sm text-green-600">
+              <Check class="h-4 w-4" />
+              <span>{{ $t('templates.mediaUploaded') }}: {{ headerMediaFilename || headerMediaHandle }}</span>
+            </div>
+          </div>
+
+          <!-- Body Content -->
+          <div class="space-y-2">
+            <Label>{{ $t('templates.bodyContent') }} <span class="text-destructive">*</span></Label>
+            <Textarea
+              v-model="formData.body_content"
+              :placeholder="$t('templates.bodyContentPlaceholder')"
+              rows="4"
+            />
+            <p class="text-xs text-muted-foreground">
+              {{ $t('templates.variablesHint') }}
+            </p>
+          </div>
+
+          <!-- Footer Content -->
+          <div class="space-y-2">
+            <Label>{{ $t('templates.footerContent') }}</Label>
+            <Input v-model="formData.footer_content" :placeholder="$t('templates.footerPlaceholder')" />
+          </div>
+
+          <!-- Sample Values for Variables -->
+          <div v-if="bodyVariables.length > 0 || headerVariables.length > 0" class="space-y-2">
+            <Label>{{ $t('templates.sampleValues') }}</Label>
+            <p class="text-xs text-muted-foreground mb-2">
+              {{ $t('templates.sampleValuesHint') }}
+            </p>
+            <div class="space-y-2">
+              <div v-for="paramName in headerVariables" :key="'header-' + paramName" class="flex items-center gap-2">
+                <Label class="w-32 text-sm">{{ formatVariableLabel(paramName) }} (Header)</Label>
+                <Input
+                  :value="getSampleValue('header', paramName)"
+                  @input="(e: any) => setSampleValue('header', paramName, e.target.value)"
+                  :placeholder="$t('templates.sampleValuePlaceholder')"
+                  class="flex-1"
+                />
+              </div>
+              <div v-for="paramName in bodyVariables" :key="'body-' + paramName" class="flex items-center gap-2">
+                <Label class="w-32 text-sm">{{ formatVariableLabel(paramName) }}</Label>
+                <Input
+                  :value="getSampleValue('body', paramName)"
+                  @input="(e: any) => setSampleValue('body', paramName, e.target.value)"
+                  :placeholder="$t('templates.sampleValuePlaceholder')"
+                  class="flex-1"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <Label>{{ $t('templates.buttons') }}</Label>
+              <Button type="button" variant="outline" size="sm" @click="addButton">
+                <Plus class="h-4 w-4 mr-2" />
                 {{ $t('templates.addButton') }}
               </Button>
             </div>
-            <p class="text-xs text-muted-foreground">{{ $t('templates.maxButtonsHint') }}</p>
-
-            <div v-for="(button, index) in formData.buttons" :key="index" class="border rounded-lg p-3 space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium">{{ $t('templates.button') }} {{ index + 1 }}</span>
-                <Button type="button" variant="ghost" size="sm" @click="removeButton(index)">
-                  <X class="h-4 w-4 text-destructive" />
+            <div v-if="formData.buttons.length > 0" class="space-y-2">
+              <div
+                v-for="(button, index) in formData.buttons"
+                :key="index"
+                class="flex items-center gap-2 p-3 border rounded-md"
+              >
+                <div class="flex-1 space-y-2">
+                  <Select v-model="button.type">
+                    <SelectTrigger class="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem v-for="type in buttonTypes" :key="type.value" :value="type.value">
+                        <div>
+                          <div class="font-medium">{{ type.label }}</div>
+                          <div class="text-xs text-muted-foreground">{{ type.description }}</div>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input v-model="button.text" :placeholder="$t('templates.buttonText')" />
+                  <Input
+                    v-if="button.type === 'URL'"
+                    v-model="button.url"
+                    :placeholder="$t('templates.buttonUrl')"
+                  />
+                  <Input
+                    v-if="button.type === 'PHONE_NUMBER'"
+                    v-model="button.phone_number"
+                    :placeholder="$t('templates.buttonPhone')"
+                  />
+                </div>
+                <Button type="button" variant="ghost" size="icon" @click="removeButton(index)">
+                  <X class="h-4 w-4" />
                 </Button>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1">
-                  <Label class="text-xs">{{ $t('templates.buttonType') }}</Label>
-                  <select v-model="button.type" class="w-full h-9 rounded-md border bg-background px-2 text-sm">
-                    <option v-for="bt in buttonTypes" :key="bt.value" :value="bt.value">
-                      {{ bt.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1">
-                  <Label class="text-xs">{{ $t('templates.buttonText') }}</Label>
-                  <Input v-model="button.text" :placeholder="$t('templates.buttonTextPlaceholder')" class="h-9" />
-                </div>
-              </div>
-
-              <!-- URL specific fields -->
-              <div v-if="button.type === 'URL'" class="space-y-1">
-                <Label class="text-xs">{{ $t('templates.buttonUrl') }}</Label>
-                <Input v-model="button.url" placeholder="https://example.com/{{path}}" class="h-9" />
-                <p class="text-xs text-muted-foreground">{{ $t('templates.buttonUrlHint') }}</p>
-              </div>
-
-              <!-- Phone number specific fields -->
-              <div v-if="button.type === 'PHONE_NUMBER'" class="space-y-1">
-                <Label class="text-xs">{{ $t('templates.buttonPhoneNumber') }}</Label>
-                <Input v-model="button.phone_number" placeholder="+1234567890" class="h-9" />
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <!-- Sample Values for Variables -->
-          <div v-if="bodyVariables.length > 0 || headerVariables.length > 0" class="space-y-3">
-            <div>
-              <Label>{{ $t('templates.sampleValues') }}</Label>
-              <p class="text-xs text-muted-foreground mt-1">
-                {{ $t('templates.sampleValuesHint') }}
-              </p>
-            </div>
-
-            <!-- Header Variables -->
-            <div v-if="headerVariables.length > 0" class="space-y-2">
-              <p class="text-sm font-medium text-muted-foreground">{{ $t('templates.headerVariables') }}</p>
-              <div v-for="paramName in headerVariables" :key="'header-' + paramName" class="flex items-center gap-2">
-                <span class="text-sm font-mono bg-muted px-2 py-1 rounded min-w-[80px] text-center">{{ formatVariableLabel(paramName) }}</span>
-                <input
-                  type="text"
-                  :value="getSampleValue('header', paramName)"
-                  @input="setSampleValue('header', paramName, ($event.target as HTMLInputElement).value)"
-                  :placeholder="$t('templates.exampleFor', { name: paramName }) + '...'"
-                  class="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                />
-              </div>
-            </div>
-
-            <!-- Body Variables -->
-            <div v-if="bodyVariables.length > 0" class="space-y-2">
-              <p class="text-sm font-medium text-muted-foreground">{{ $t('templates.bodyVariables') }}</p>
-              <div v-for="paramName in bodyVariables" :key="'body-' + paramName" class="flex items-center gap-2">
-                <span class="text-sm font-mono bg-muted px-2 py-1 rounded min-w-[80px] text-center">{{ formatVariableLabel(paramName) }}</span>
-                <input
-                  type="text"
-                  :value="getSampleValue('body', paramName)"
-                  @input="setSampleValue('body', paramName, ($event.target as HTMLInputElement).value)"
-                  :placeholder="$t('templates.exampleFor', { name: paramName }) + '...'"
-                  class="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Info Box -->
-          <div class="bg-blue-950 light:bg-blue-50 border border-blue-800 light:border-blue-200 rounded-lg p-4">
-            <div class="flex gap-3">
-              <AlertCircle class="h-5 w-5 text-blue-400 light:text-blue-600 flex-shrink-0" />
-              <div class="text-sm text-blue-200 light:text-blue-800">
-                <p class="font-medium">{{ $t('templates.templateSubmission') }}</p>
-                <p class="mt-1">
-                  {{ $t('templates.templateSubmissionHint') }}
-                </p>
               </div>
             </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" @click="isDialogOpen = false">{{ $t('common.cancel') }}</Button>
-          <Button size="sm" @click="saveTemplate" :disabled="isSubmitting">
+          <Button variant="outline" @click="isDialogOpen = false">{{ $t('common.cancel') }}</Button>
+          <Button @click="saveTemplate" :disabled="isSubmitting">
             <Loader2 v-if="isSubmitting" class="h-4 w-4 mr-2 animate-spin" />
-            {{ editingTemplate ? $t('templates.updateTemplate') : $t('templates.createTemplate') }}
+            {{ editingTemplate ? $t('common.update') : $t('common.create') }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1045,110 +997,74 @@ function formatPreview(text: string, samples: any[]): string {
     <Dialog v-model:open="isPreviewOpen">
       <DialogContent class="max-w-md">
         <DialogHeader>
-          <DialogTitle>{{ $t('templates.templatePreview') }}</DialogTitle>
-          <DialogDescription>
-            {{ previewTemplate?.display_name || previewTemplate?.name }}
-          </DialogDescription>
+          <DialogTitle>{{ $t('templates.preview') }}</DialogTitle>
+          <DialogDescription>{{ previewTemplate?.name }}</DialogDescription>
         </DialogHeader>
-
-        <div v-if="previewTemplate" class="py-4">
-          <!-- WhatsApp-style preview -->
-          <div class="bg-gray-800 light:bg-[#e5ddd5] rounded-lg p-4">
-            <div class="bg-gray-700 light:bg-white rounded-lg shadow max-w-[280px] overflow-hidden">
-              <!-- Header -->
-              <div v-if="previewTemplate.header_type && previewTemplate.header_type !== 'NONE'" class="p-3 border-b">
-                <div v-if="previewTemplate.header_type === 'TEXT'" class="font-semibold">
-                  {{ previewTemplate.header_content }}
-                </div>
-                <div v-else class="h-32 bg-gray-600 light:bg-gray-200 rounded flex items-center justify-center">
-                  <component :is="getHeaderIcon(previewTemplate.header_type)" class="h-8 w-8 text-gray-400" />
-                </div>
-              </div>
-
-              <!-- Body -->
-              <div class="p-3">
-                <p class="text-sm whitespace-pre-wrap" v-html="formatPreview(previewTemplate.body_content, previewTemplate.sample_values || [])"></p>
-              </div>
-
-              <!-- Footer -->
-              <div v-if="previewTemplate.footer_content" class="px-3 pb-3">
-                <p class="text-xs text-gray-500">{{ previewTemplate.footer_content }}</p>
-              </div>
-
-              <!-- Buttons -->
-              <div v-if="previewTemplate.buttons && previewTemplate.buttons.length > 0" class="border-t">
-                <div v-for="(btn, idx) in previewTemplate.buttons" :key="idx" class="border-b last:border-b-0">
-                  <button class="w-full py-2 text-sm text-blue-500 hover:bg-gray-600 light:hover:bg-gray-50">
-                    {{ btn.text || btn.title || 'Button' }}
-                  </button>
-                </div>
-              </div>
+        <div v-if="previewTemplate" class="space-y-4">
+          <!-- Header Preview -->
+          <div v-if="previewTemplate.header_type && previewTemplate.header_type !== 'NONE'" class="border-b pb-3">
+            <div v-if="previewTemplate.header_type === 'TEXT'" class="font-semibold">
+              <div v-html="formatPreview(previewTemplate.header_content, previewTemplate.sample_values.filter((s: any) => s.component === 'header'))"></div>
+            </div>
+            <div v-else class="flex items-center gap-2 text-muted-foreground">
+              <component :is="getHeaderIcon(previewTemplate.header_type)" class="h-5 w-5" />
+              <span>{{ previewTemplate.header_type }} {{ $t('templates.attachment') }}</span>
             </div>
           </div>
-
-          <!-- Template Info -->
-          <div class="mt-4 space-y-2 text-sm">
-            <div class="flex justify-between">
-              <span class="text-muted-foreground">{{ $t('templates.status') }}:</span>
-              <span :class="['px-2 py-0.5 rounded text-xs font-medium', getStatusBadgeClass(previewTemplate.status)]">
-                {{ previewTemplate.status }}
-              </span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-muted-foreground">{{ $t('templates.category') }}:</span>
-              <span>{{ previewTemplate.category }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-muted-foreground">{{ $t('templates.language') }}:</span>
-              <span>{{ getLanguageName(previewTemplate.language) }}</span>
-            </div>
-            <div v-if="previewTemplate.meta_template_id" class="flex justify-between">
-              <span class="text-muted-foreground">{{ $t('templates.metaId') }}:</span>
-              <span class="font-mono text-xs">{{ previewTemplate.meta_template_id }}</span>
-            </div>
+          <!-- Body Preview -->
+          <div class="whitespace-pre-wrap" v-html="formatPreview(previewTemplate.body_content, previewTemplate.sample_values.filter((s: any) => s.component === 'body'))"></div>
+          <!-- Footer Preview -->
+          <div v-if="previewTemplate.footer_content" class="text-sm text-muted-foreground border-t pt-3">
+            {{ previewTemplate.footer_content }}
+          </div>
+          <!-- Buttons Preview -->
+          <div v-if="previewTemplate.buttons && previewTemplate.buttons.length > 0" class="space-y-2 border-t pt-3">
+            <Button
+              v-for="(button, index) in previewTemplate.buttons"
+              :key="index"
+              variant="outline"
+              class="w-full"
+              size="sm"
+            >
+              {{ button.text }}
+            </Button>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" size="sm" @click="isPreviewOpen = false">{{ $t('common.close') }}</Button>
-          <Button
-            v-if="previewTemplate?.status === 'DRAFT' || previewTemplate?.status === 'REJECTED'"
-            size="sm"
-            @click="openPublishDialog(previewTemplate!); isPreviewOpen = false"
-            :disabled="publishingTemplateId === previewTemplate?.id"
-          >
-            <Loader2 v-if="publishingTemplateId === previewTemplate?.id" class="h-4 w-4 mr-2 animate-spin" />
-            <Send v-else class="h-4 w-4 mr-2" />
-            {{ previewTemplate?.meta_template_id ? $t('templates.republishToMeta') : $t('templates.publishToMeta') }}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
 
-    <DeleteConfirmDialog
-      v-model:open="deleteDialogOpen"
-      :title="$t('templates.deleteTemplate')"
-      :item-name="templateToDelete?.display_name || templateToDelete?.name"
-      @confirm="confirmDeleteTemplate"
-    />
+    <!-- Delete Confirmation Dialog -->
+    <AlertDialog v-model:open="deleteDialogOpen">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{{ $t('templates.deleteConfirmTitle') }}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {{ $t('templates.deleteConfirmDesc', { name: templateToDelete?.name }) }}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{{ $t('common.cancel') }}</AlertDialogCancel>
+          <AlertDialogAction @click="confirmDeleteTemplate" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {{ $t('common.delete') }}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Publish Confirmation Dialog -->
     <AlertDialog v-model:open="publishDialogOpen">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{{ templateToPublish?.meta_template_id ? $t('templates.republishTemplate') : $t('templates.publishTemplate') }}</AlertDialogTitle>
+          <AlertDialogTitle>{{ $t('templates.publishConfirmTitle') }}</AlertDialogTitle>
           <AlertDialogDescription>
-            <template v-if="templateToPublish?.meta_template_id">
-              {{ $t('templates.republishConfirm', { name: templateToPublish?.display_name || templateToPublish?.name }) }}
-            </template>
-            <template v-else>
-              {{ $t('templates.publishConfirm', { name: templateToPublish?.display_name || templateToPublish?.name }) }}
-            </template>
+            {{ $t('templates.publishConfirmDesc', { name: templateToPublish?.name }) }}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{{ $t('common.cancel') }}</AlertDialogCancel>
-          <AlertDialogAction @click="confirmPublishTemplate">{{ templateToPublish?.meta_template_id ? $t('templates.republish') : $t('templates.publish') }}</AlertDialogAction>
+          <AlertDialogAction @click="confirmPublishTemplate">
+            {{ $t('templates.publish') }}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

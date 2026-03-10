@@ -25,6 +25,7 @@ type CampaignRequest struct {
 	WhatsAppAccount string     `json:"whatsapp_account" validate:"required"`
 	TemplateID      string     `json:"template_id" validate:"required"`
 	HeaderMediaID   string     `json:"header_media_id"`
+	HeaderMediaURL  string     `json:"header_media_url"` // Public URL for media (alternative to upload)
 	ScheduledAt     *time.Time `json:"scheduled_at"`
 }
 
@@ -296,6 +297,19 @@ func (a *App) UpdateCampaign(r *fastglue.Request) error {
 		updates["whats_app_account"] = req.WhatsAppAccount
 	}
 
+	// Handle media URL (alternative to file upload)
+	if req.HeaderMediaURL != "" {
+		// Validate URL format
+		if !strings.HasPrefix(req.HeaderMediaURL, "http://") && !strings.HasPrefix(req.HeaderMediaURL, "https://") {
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Media URL must start with http:// or https://", nil, "")
+		}
+		// Store URL in header_media_id field (worker will detect it's a URL)
+		updates["header_media_id"] = req.HeaderMediaURL
+		updates["header_media_filename"] = "External URL"
+		updates["header_media_mime_type"] = "" // Unknown for external URLs
+		a.Log.Info("Campaign media URL set", "campaign_id", id, "url", req.HeaderMediaURL)
+	}
+
 	if err := a.DB.Model(campaign).Updates(updates).Error; err != nil {
 		a.Log.Error("Failed to update campaign", "error", err)
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to update campaign", nil, "")
@@ -402,11 +416,20 @@ func (a *App) StartCampaign(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Campaign has no pending recipients", nil, "")
 	}
 
-	// Validate template still exists
+	// Validate template still exists and check media requirements
 	if campaign.TemplateID != uuid.Nil {
 		var template models.Template
 		if err := a.DB.Where("id = ? AND organization_id = ?", campaign.TemplateID, orgID).First(&template).Error; err != nil {
 			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Campaign template no longer exists", nil, "")
+		}
+		
+		// Check if template requires media but campaign has none
+		if template.HeaderType != "" && template.HeaderType != "TEXT" && template.HeaderType != "NONE" {
+			if campaign.HeaderMediaID == "" && template.HeaderContent == "" {
+				return r.SendErrorEnvelope(fasthttp.StatusBadRequest, 
+					fmt.Sprintf("Template requires %s media but none uploaded. Please upload media before starting the campaign.", template.HeaderType), 
+					nil, "")
+			}
 		}
 	}
 

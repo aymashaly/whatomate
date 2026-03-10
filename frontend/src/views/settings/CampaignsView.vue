@@ -263,7 +263,14 @@ const isValidatingCSV = ref(false)
 const selectedTemplate = ref<Template | null>(null)
 const addRecipientsTab = ref('manual')
 
-// Media upload state
+// Campaign media upload state
+const campaignMediaFile = ref<File | null>(null)
+const campaignMediaUploading = ref(false)
+const campaignMediaInput = ref<HTMLInputElement | null>(null)
+const campaignMediaUrl = ref('')
+const campaignMediaMode = ref<'upload' | 'url'>('upload')
+const savingMediaUrl = ref(false)
+
 // Computed: template parameter format hints
 const templateParamNames = computed(() => {
   if (!selectedTemplate.value) return []
@@ -729,6 +736,18 @@ async function viewRecipients(campaign: Campaign) {
   selectedCampaign.value = campaign
   showRecipientsDialog.value = true
   isLoadingRecipients.value = true
+  
+  // Fetch template details if campaign has a template
+  if (campaign.template_id) {
+    try {
+      const response = await templatesService.get(campaign.template_id)
+      selectedTemplate.value = response.data.data || response.data
+    } catch (error) {
+      console.error('Failed to fetch template:', error)
+      selectedTemplate.value = null
+    }
+  }
+  
   try {
     const response = await campaignsService.getRecipients(campaign.id)
     recipients.value = response.data.data?.recipients || []
@@ -739,6 +758,123 @@ async function viewRecipients(campaign: Campaign) {
   } finally {
     isLoadingRecipients.value = false
   }
+}
+
+// Campaign media upload functions
+function getHeaderIcon(type: string) {
+  switch (type) {
+    case 'IMAGE':
+      return Image
+    case 'VIDEO':
+      return Video
+    case 'DOCUMENT':
+      return FileIcon
+    default:
+      return MessageSquare
+  }
+}
+
+function getAcceptedMediaTypes(headerType: string): string {
+  switch (headerType) {
+    case 'IMAGE':
+      return 'image/jpeg,image/png,image/webp'
+    case 'VIDEO':
+      return 'video/mp4,video/3gpp'
+    case 'DOCUMENT':
+      return 'application/pdf'
+    default:
+      return '*/*'
+  }
+}
+
+function onCampaignMediaFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files.length > 0) {
+    campaignMediaFile.value = input.files[0]
+  }
+}
+
+async function uploadCampaignMedia() {
+  if (!campaignMediaFile.value || !selectedCampaign.value) {
+    toast.error(t('campaigns.selectMediaFile'))
+    return
+  }
+
+  campaignMediaUploading.value = true
+  try {
+    const response = await campaignsService.uploadMedia(selectedCampaign.value.id, campaignMediaFile.value)
+    const data = response.data.data
+    toast.success(t('campaigns.mediaUploadedSuccess'))
+    
+    // Update campaign with new media info
+    if (selectedCampaign.value) {
+      selectedCampaign.value.header_media_id = data.media_id
+      selectedCampaign.value.header_media_filename = data.filename
+      selectedCampaign.value.header_media_mime_type = data.mime_type
+    }
+    
+    // Clear file input
+    campaignMediaFile.value = null
+    if (campaignMediaInput.value) {
+      campaignMediaInput.value.value = ''
+    }
+    
+    // Refresh campaigns list
+    await fetchCampaigns()
+  } catch (error) {
+    toast.error(getErrorMessage(error, t('campaigns.mediaUploadFailed')))
+  } finally {
+    campaignMediaUploading.value = false
+  }
+}
+
+async function saveCampaignMediaUrl() {
+  if (!campaignMediaUrl.value.trim() || !selectedCampaign.value) {
+    toast.error(t('campaigns.enterMediaUrl'))
+    return
+  }
+
+  // Validate URL format
+  try {
+    new URL(campaignMediaUrl.value)
+  } catch {
+    toast.error(t('campaigns.invalidUrlFormat'))
+    return
+  }
+
+  // Check if URL is publicly accessible (starts with http/https)
+  if (!campaignMediaUrl.value.startsWith('http://') && !campaignMediaUrl.value.startsWith('https://')) {
+    toast.error(t('campaigns.urlMustBePublic'))
+    return
+  }
+
+  savingMediaUrl.value = true
+  try {
+    // Update campaign to use URL instead of media ID
+    const response = await campaignsService.update(selectedCampaign.value.id, {
+      header_media_url: campaignMediaUrl.value
+    })
+    
+    toast.success(t('campaigns.mediaUrlSaved'))
+    
+    // Update local campaign
+    if (selectedCampaign.value) {
+      selectedCampaign.value.header_media_id = campaignMediaUrl.value // Store URL in media_id field
+      selectedCampaign.value.header_media_filename = 'External URL'
+    }
+    
+    // Refresh campaigns list
+    await fetchCampaigns()
+  } catch (error) {
+    toast.error(getErrorMessage(error, t('campaigns.saveUrlFailed')))
+  } finally {
+    savingMediaUrl.value = false
+  }
+}
+
+function viewCampaignMedia(campaign: Campaign) {
+  previewingCampaign.value = campaign
+  showMediaPreviewDialog.value = true
 }
 
 async function deleteRecipient(recipientId: string) {
@@ -1161,7 +1297,7 @@ async function addRecipientsFromCSV() {
     </PageHeader>
 
     <Dialog v-model:open="showCreateDialog">
-          <DialogContent class="sm:max-w-[500px]">
+          <DialogContent class="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{{ editingCampaignId ? $t('campaigns.editCampaign') : $t('campaigns.createNewCampaign') }}</DialogTitle>
               <DialogDescription>
@@ -1418,6 +1554,121 @@ async function addRecipientsFromCSV() {
             {{ selectedCampaign?.name }} - {{ $t('campaigns.recipientCount', { count: recipients.length }) }}
           </DialogDescription>
         </DialogHeader>
+        
+        <!-- Campaign Media Upload Section (for templates with media headers) -->
+        <div v-if="selectedCampaign && selectedTemplate && selectedTemplate.header_type && selectedTemplate.header_type !== 'NONE' && selectedTemplate.header_type !== 'TEXT' && selectedCampaign.status === 'draft'" class="border rounded-lg p-4 bg-muted/30">
+          <div class="flex items-center gap-2 mb-3">
+            <component :is="getHeaderIcon(selectedTemplate.header_type)" class="h-5 w-5 text-primary" />
+            <Label class="text-base font-semibold">{{ $t('campaigns.campaignMedia') }}</Label>
+          </div>
+          <p class="text-sm text-muted-foreground mb-3">
+            {{ $t('campaigns.uploadMediaForTemplate', { type: selectedTemplate.header_type }) }}
+          </p>
+          
+          <!-- Show current media if exists -->
+          <div v-if="selectedCampaign.header_media_filename" class="mb-3 p-3 bg-background rounded border">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <Check class="h-4 w-4 text-green-600" />
+                <span class="text-sm font-medium">{{ selectedCampaign.header_media_filename }}</span>
+              </div>
+              <Button variant="ghost" size="sm" @click="viewCampaignMedia(selectedCampaign)">
+                <Eye class="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <!-- Tabs for Upload or URL -->
+          <Tabs v-model="campaignMediaMode" class="w-full">
+            <TabsList class="grid w-full grid-cols-2">
+              <TabsTrigger value="upload">
+                <Upload class="h-4 w-4 mr-2" />
+                {{ $t('campaigns.uploadFile') }}
+              </TabsTrigger>
+              <TabsTrigger value="url">
+                <MessageSquare class="h-4 w-4 mr-2" />
+                {{ $t('campaigns.useUrl') }}
+              </TabsTrigger>
+            </TabsList>
+
+            <!-- Upload File Tab -->
+            <TabsContent value="upload" class="mt-4">
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    :accept="getAcceptedMediaTypes(selectedTemplate.header_type)"
+                    @change="onCampaignMediaFileChange"
+                    class="flex-1"
+                    ref="campaignMediaInput"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    @click="uploadCampaignMedia"
+                    :disabled="!campaignMediaFile || campaignMediaUploading"
+                  >
+                    <Loader2 v-if="campaignMediaUploading" class="h-4 w-4 mr-2 animate-spin" />
+                    <Upload v-else class="h-4 w-4 mr-2" />
+                    {{ $t('campaigns.upload') }}
+                  </Button>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                  {{ $t('campaigns.uploadFileHint') }}
+                </p>
+              </div>
+            </TabsContent>
+
+            <!-- Use URL Tab -->
+            <TabsContent value="url" class="mt-4">
+              <div class="space-y-2">
+                <Label class="text-sm">{{ $t('campaigns.publicMediaUrl') }}</Label>
+                <div class="flex items-center gap-2">
+                  <Input
+                    v-model="campaignMediaUrl"
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    class="flex-1"
+                    :disabled="savingMediaUrl"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    @click="saveCampaignMediaUrl"
+                    :disabled="!campaignMediaUrl.trim() || savingMediaUrl"
+                  >
+                    <Loader2 v-if="savingMediaUrl" class="h-4 w-4 mr-2 animate-spin" />
+                    <Check v-else class="h-4 w-4 mr-2" />
+                    {{ $t('campaigns.saveUrl') }}
+                  </Button>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                  {{ $t('campaigns.urlFallbackHint') }}
+                </p>
+                <div class="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded p-3 mt-2">
+                  <div class="flex gap-2">
+                    <AlertCircle class="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div class="text-xs text-blue-800 dark:text-blue-200">
+                      <p class="font-medium mb-1">{{ $t('campaigns.urlRequirements') }}</p>
+                      <ul class="list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-300">
+                        <li>{{ $t('campaigns.urlMustBeHttps') }}</li>
+                        <li>{{ $t('campaigns.urlMustBePubliclyAccessible') }}</li>
+                        <li>{{ $t('campaigns.urlRecommendedCdn') }}</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          
+          <p class="text-xs text-muted-foreground mt-3">
+            {{ $t('campaigns.mediaWillBeUsedForAll') }}
+          </p>
+        </div>
+
         <div class="py-4">
           <div v-if="isLoadingRecipients" class="flex items-center justify-center py-8">
             <Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />

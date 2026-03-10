@@ -207,6 +207,14 @@ func (a *App) UpdateTemplate(r *fastglue.Request) error {
 		return nil
 	}
 
+	// Validate WhatsApp account if it's being changed (shouldn't normally happen, but validate if provided)
+	if req.WhatsAppAccount != "" && req.WhatsAppAccount != template.WhatsAppAccount {
+		if _, err := a.resolveWhatsAppAccount(orgID, req.WhatsAppAccount); err != nil {
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "WhatsApp account not found", nil, "")
+		}
+		template.WhatsAppAccount = req.WhatsAppAccount
+	}
+
 	// Update fields
 	if req.DisplayName != "" {
 		template.DisplayName = req.DisplayName
