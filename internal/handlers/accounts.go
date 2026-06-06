@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/shridarpatil/whatomate/internal/audit"
 	"github.com/shridarpatil/whatomate/internal/crypto"
 	"github.com/shridarpatil/whatomate/internal/models"
 	"github.com/valyala/fasthttp"
@@ -26,30 +27,36 @@ type AccountRequest struct {
 	AppSecret          string `json:"app_secret"` // Meta App Secret for webhook signature verification
 	WebhookVerifyToken string `json:"webhook_verify_token"`
 	APIVersion         string `json:"api_version"`
-	IsDefaultIncoming  bool   `json:"is_default_incoming"`
-	IsDefaultOutgoing  bool   `json:"is_default_outgoing"`
-	AutoReadReceipt    bool   `json:"auto_read_receipt"`
+	IsDefaultIncoming      bool   `json:"is_default_incoming"`
+	IsDefaultOutgoing      bool   `json:"is_default_outgoing"`
+	AutoReadReceipt        bool   `json:"auto_read_receipt"`
+	BusinessCallingEnabled bool   `json:"business_calling_enabled"`
 }
 
 // AccountResponse represents the response for an account (without sensitive data)
 type AccountResponse struct {
-	ID                 uuid.UUID `json:"id"`
-	Name               string    `json:"name"`
-	AppID              string    `json:"app_id"`
-	PhoneID            string    `json:"phone_id"`
-	BusinessID         string    `json:"business_id"`
-	WebhookVerifyToken string    `json:"webhook_verify_token"`
-	APIVersion         string    `json:"api_version"`
-	IsDefaultIncoming  bool      `json:"is_default_incoming"`
-	IsDefaultOutgoing  bool      `json:"is_default_outgoing"`
-	AutoReadReceipt    bool      `json:"auto_read_receipt"`
-	Status             string    `json:"status"`
-	HasAccessToken     bool      `json:"has_access_token"`
-	HasAppSecret       bool      `json:"has_app_secret"`
-	PhoneNumber        string    `json:"phone_number,omitempty"`
-	DisplayName        string    `json:"display_name,omitempty"`
-	CreatedAt          string    `json:"created_at"`
-	UpdatedAt          string    `json:"updated_at"`
+	ID                 uuid.UUID  `json:"id"`
+	Name               string     `json:"name"`
+	AppID              string     `json:"app_id"`
+	PhoneID            string     `json:"phone_id"`
+	BusinessID         string     `json:"business_id"`
+	WebhookVerifyToken string     `json:"webhook_verify_token"`
+	APIVersion         string     `json:"api_version"`
+	IsDefaultIncoming      bool       `json:"is_default_incoming"`
+	IsDefaultOutgoing      bool       `json:"is_default_outgoing"`
+	AutoReadReceipt        bool       `json:"auto_read_receipt"`
+	BusinessCallingEnabled bool       `json:"business_calling_enabled"`
+	Status                 string     `json:"status"`
+	HasAccessToken     bool       `json:"has_access_token"`
+	HasAppSecret       bool       `json:"has_app_secret"`
+	PhoneNumber        string     `json:"phone_number,omitempty"`
+	DisplayName        string     `json:"display_name,omitempty"`
+	CreatedByID        *uuid.UUID `json:"created_by_id,omitempty"`
+	CreatedByName      string     `json:"created_by_name,omitempty"`
+	UpdatedByID        *uuid.UUID `json:"updated_by_id,omitempty"`
+	UpdatedByName      string     `json:"updated_by_name,omitempty"`
+	CreatedAt          string     `json:"created_at"`
+	UpdatedAt          string     `json:"updated_at"`
 }
 
 // ListAccounts returns all WhatsApp accounts for the organization
@@ -71,14 +78,14 @@ func (a *App) ListAccounts(r *fastglue.Request) error {
 		response[i] = accountToResponse(acc)
 	}
 
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"accounts": response,
 	})
 }
 
 // CreateAccount creates a new WhatsApp account
 func (a *App) CreateAccount(r *fastglue.Request) error {
-	orgID, err := a.getOrgID(r)
+	orgID, userID, err := a.getOrgAndUserID(r)
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, "Unauthorized", nil, "")
 	}
@@ -127,10 +134,13 @@ func (a *App) CreateAccount(r *fastglue.Request) error {
 		AppSecret:          encAppSecret,
 		WebhookVerifyToken: webhookVerifyToken,
 		APIVersion:         apiVersion,
-		IsDefaultIncoming:  req.IsDefaultIncoming,
-		IsDefaultOutgoing:  req.IsDefaultOutgoing,
-		AutoReadReceipt:    req.AutoReadReceipt,
-		Status:             "active",
+		IsDefaultIncoming:      req.IsDefaultIncoming,
+		IsDefaultOutgoing:      req.IsDefaultOutgoing,
+		AutoReadReceipt:        req.AutoReadReceipt,
+		BusinessCallingEnabled: req.BusinessCallingEnabled,
+		Status:                 "active",
+		CreatedByID:        &userID,
+		UpdatedByID:        &userID,
 	}
 
 	// If this is set as default, unset other defaults
@@ -150,6 +160,10 @@ func (a *App) CreateAccount(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to create account", nil, "")
 	}
 
+	a.DB.Preload("CreatedBy").Preload("UpdatedBy").First(&account, "id = ?", account.ID)
+	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+		"account", account.ID, models.AuditActionCreated, nil, &account)
+
 	return r.SendEnvelope(accountToResponse(account))
 }
 
@@ -165,7 +179,8 @@ func (a *App) GetAccount(r *fastglue.Request) error {
 		return nil
 	}
 
-	account, err := findByIDAndOrg[models.WhatsAppAccount](a.DB, r, id, orgID, "Account")
+	account, err := findByIDAndOrg[models.WhatsAppAccount](
+		a.DB.Preload("CreatedBy").Preload("UpdatedBy"), r, id, orgID, "Account")
 	if err != nil {
 		return nil
 	}
@@ -175,7 +190,7 @@ func (a *App) GetAccount(r *fastglue.Request) error {
 
 // UpdateAccount updates a WhatsApp account
 func (a *App) UpdateAccount(r *fastglue.Request) error {
-	orgID, err := a.getOrgID(r)
+	orgID, userID, err := a.getOrgAndUserID(r)
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, "Unauthorized", nil, "")
 	}
@@ -189,6 +204,8 @@ func (a *App) UpdateAccount(r *fastglue.Request) error {
 	if err != nil {
 		return nil
 	}
+
+	oldAccount := *account // value copy for audit
 
 	var req AccountRequest
 	if err := a.decodeRequest(r, &req); err != nil {
@@ -208,6 +225,8 @@ func (a *App) UpdateAccount(r *fastglue.Request) error {
 	if req.BusinessID != "" {
 		account.BusinessID = req.BusinessID
 	}
+	tokenChanged := false
+	secretChanged := false
 	if req.AccessToken != "" {
 		enc, err := crypto.Encrypt(req.AccessToken, a.Config.App.EncryptionKey)
 		if err != nil {
@@ -215,6 +234,7 @@ func (a *App) UpdateAccount(r *fastglue.Request) error {
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to update account", nil, "")
 		}
 		account.AccessToken = enc
+		tokenChanged = true
 	}
 	if req.AppSecret != "" {
 		enc, err := crypto.Encrypt(req.AppSecret, a.Config.App.EncryptionKey)
@@ -223,6 +243,7 @@ func (a *App) UpdateAccount(r *fastglue.Request) error {
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to update account", nil, "")
 		}
 		account.AppSecret = enc
+		secretChanged = true
 	}
 	if req.WebhookVerifyToken != "" {
 		account.WebhookVerifyToken = req.WebhookVerifyToken
@@ -231,6 +252,7 @@ func (a *App) UpdateAccount(r *fastglue.Request) error {
 		account.APIVersion = req.APIVersion
 	}
 	account.AutoReadReceipt = req.AutoReadReceipt
+	account.BusinessCallingEnabled = req.BusinessCallingEnabled
 
 	// Handle default flags
 	if req.IsDefaultIncoming && !account.IsDefaultIncoming {
@@ -245,6 +267,7 @@ func (a *App) UpdateAccount(r *fastglue.Request) error {
 	}
 	account.IsDefaultIncoming = req.IsDefaultIncoming
 	account.IsDefaultOutgoing = req.IsDefaultOutgoing
+	account.UpdatedByID = &userID
 
 	if err := a.DB.Save(account).Error; err != nil {
 		a.Log.Error("Failed to update account", "error", err)
@@ -254,12 +277,28 @@ func (a *App) UpdateAccount(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateWhatsAppAccountCache(account.PhoneID)
 
+	a.DB.Preload("CreatedBy").Preload("UpdatedBy").First(account, "id = ?", account.ID)
+
+	var sensitiveChanges []map[string]any
+	if tokenChanged {
+		sensitiveChanges = append(sensitiveChanges, map[string]any{
+			"field": "access_token", "old_value": "********", "new_value": "********",
+		})
+	}
+	if secretChanged {
+		sensitiveChanges = append(sensitiveChanges, map[string]any{
+			"field": "app_secret", "old_value": "********", "new_value": "********",
+		})
+	}
+	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+		"account", account.ID, models.AuditActionUpdated, &oldAccount, account, sensitiveChanges...)
+
 	return r.SendEnvelope(accountToResponse(*account))
 }
 
 // DeleteAccount deletes a WhatsApp account
 func (a *App) DeleteAccount(r *fastglue.Request) error {
-	orgID, err := a.getOrgID(r)
+	orgID, userID, err := a.getOrgAndUserID(r)
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, "Unauthorized", nil, "")
 	}
@@ -269,7 +308,7 @@ func (a *App) DeleteAccount(r *fastglue.Request) error {
 		return nil
 	}
 
-	// Get account first for cache invalidation
+	// Get account first for cache invalidation and audit
 	account, err := findByIDAndOrg[models.WhatsAppAccount](a.DB, r, id, orgID, "Account")
 	if err != nil {
 		return nil
@@ -282,6 +321,9 @@ func (a *App) DeleteAccount(r *fastglue.Request) error {
 
 	// Invalidate cache
 	a.InvalidateWhatsAppAccountCache(account.PhoneID)
+
+	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+		"account", id, models.AuditActionDeleted, account, nil)
 
 	return r.SendEnvelope(map[string]string{"message": "Account deleted successfully"})
 }
@@ -307,59 +349,67 @@ func (a *App) TestAccountConnection(r *fastglue.Request) error {
 	// Use the comprehensive validation function
 	if err := a.validateAccountCredentials(account.PhoneID, account.BusinessID, account.AccessToken, account.APIVersion); err != nil {
 		a.Log.Error("Account test failed", "error", err, "account", account.Name)
-		return r.SendEnvelope(map[string]interface{}{
+		return r.SendEnvelope(map[string]any{
 			"success": false,
-			"error":   "Account credential validation failed. Check your access token and phone ID.",
+			"error":   fmt.Sprintf("Account credential validation failed: %s", err.Error()),
 		})
 	}
 
 	// Fetch additional details for display
-	url := fmt.Sprintf("%s/%s/%s?fields=display_phone_number,verified_name,code_verification_status,account_mode,quality_rating,messaging_limit_tier",
+	phoneURL := fmt.Sprintf("%s/%s/%s?fields=display_phone_number,verified_name,code_verification_status,account_mode,quality_rating,messaging_limit_tier,whatsapp_business_manager_messaging_limit",
 		a.Config.WhatsApp.BaseURL, account.APIVersion, account.PhoneID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		a.Log.Error("Failed to create request", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to test account", nil, "")
-	}
-	req.Header.Set("Authorization", "Bearer "+account.AccessToken)
-
-	resp, err := a.HTTPClient.Do(req)
+	result, status, err := a.fetchMetaJSON(phoneURL, account.AccessToken)
 	if err != nil {
 		a.Log.Error("Failed to connect to WhatsApp API", "error", err)
-		return r.SendEnvelope(map[string]interface{}{
+		return r.SendEnvelope(map[string]any{
 			"success": false,
 			"error":   "Failed to connect to WhatsApp API",
 		})
 	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != 200 {
-		var errorResp map[string]interface{}
-		_ = json.Unmarshal(body, &errorResp)
-		return r.SendEnvelope(map[string]interface{}{
+	if status != http.StatusOK {
+		return r.SendEnvelope(map[string]any{
 			"success": false,
 			"error":   "API error",
-			"details": errorResp,
+			"details": result,
 		})
 	}
-
-	var result map[string]interface{}
-	_ = json.Unmarshal(body, &result)
 
 	// Check if this is a test/sandbox number
 	accountMode, _ := result["account_mode"].(string)
 	isTestNumber := accountMode == "SANDBOX"
 
+	// Resolve messaging limit tier, falling back to newer portfolio-based field if deprecated field is missing/null
+	messagingLimitTier := result["messaging_limit_tier"]
+	if messagingLimitTier == nil || messagingLimitTier == "" {
+		messagingLimitTier = result["whatsapp_business_manager_messaging_limit"]
+	}
+
+	// If still empty/null, query the WABA ID (BusinessID) as a fallback
+	if (messagingLimitTier == nil || messagingLimitTier == "") && account.BusinessID != "" {
+		wabaURL := fmt.Sprintf("%s/%s/%s?fields=whatsapp_business_manager_messaging_limit",
+			a.Config.WhatsApp.BaseURL, account.APIVersion, account.BusinessID)
+		wabaResult, wabaStatus, wabaErr := a.fetchMetaJSON(wabaURL, account.AccessToken)
+		switch {
+		case wabaErr != nil:
+			a.Log.Warn("WABA fallback request failed", "waba_id", account.BusinessID, "error", wabaErr)
+		case wabaStatus != http.StatusOK:
+			a.Log.Warn("WABA fallback returned non-200", "waba_id", account.BusinessID, "status", wabaStatus)
+		default:
+			if val, ok := wabaResult["whatsapp_business_manager_messaging_limit"]; ok && val != nil && val != "" {
+				messagingLimitTier = val
+				a.Log.Info("Resolved messaging limit tier from WABA as fallback", "waba_id", account.BusinessID, "limit", val)
+			}
+		}
+	}
+
 	// Prepare response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success":                  true,
 		"display_phone_number":     result["display_phone_number"],
 		"verified_name":            result["verified_name"],
 		"quality_rating":           result["quality_rating"],
-		"messaging_limit_tier":     result["messaging_limit_tier"],
+		"messaging_limit_tier":     messagingLimitTier,
 		"code_verification_status": result["code_verification_status"],
 		"account_mode":             result["account_mode"],
 		"is_test_number":           isTestNumber,
@@ -375,10 +425,41 @@ func (a *App) TestAccountConnection(r *fastglue.Request) error {
 	return r.SendEnvelope(response)
 }
 
+// fetchMetaJSON performs a Bearer-authenticated GET against the Meta Graph API
+// and decodes the JSON body into a generic map. The decoded body is returned
+// regardless of HTTP status, so callers can surface error envelopes from Meta.
+// Returns (nil, 0, err) only when the request itself fails (network/decode).
+func (a *App) fetchMetaJSON(url, accessToken string) (map[string]any, int, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := a.HTTPClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+
+	var out map[string]any
+	if len(body) > 0 {
+		if err := json.Unmarshal(body, &out); err != nil {
+			return nil, resp.StatusCode, err
+		}
+	}
+	return out, resp.StatusCode, nil
+}
+
 // Helper functions
 
 func accountToResponse(acc models.WhatsAppAccount) AccountResponse {
-	return AccountResponse{
+	resp := AccountResponse{
 		ID:                 acc.ID,
 		Name:               acc.Name,
 		AppID:              acc.AppID,
@@ -386,15 +467,25 @@ func accountToResponse(acc models.WhatsAppAccount) AccountResponse {
 		BusinessID:         acc.BusinessID,
 		WebhookVerifyToken: acc.WebhookVerifyToken,
 		APIVersion:         acc.APIVersion,
-		IsDefaultIncoming:  acc.IsDefaultIncoming,
-		IsDefaultOutgoing:  acc.IsDefaultOutgoing,
-		AutoReadReceipt:    acc.AutoReadReceipt,
-		Status:             acc.Status,
+		IsDefaultIncoming:      acc.IsDefaultIncoming,
+		IsDefaultOutgoing:      acc.IsDefaultOutgoing,
+		AutoReadReceipt:        acc.AutoReadReceipt,
+		BusinessCallingEnabled: acc.BusinessCallingEnabled,
+		Status:                 acc.Status,
 		HasAccessToken:     acc.AccessToken != "",
 		HasAppSecret:       acc.AppSecret != "",
+		CreatedByID:        acc.CreatedByID,
+		UpdatedByID:        acc.UpdatedByID,
 		CreatedAt:          acc.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:          acc.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
+	if acc.CreatedBy != nil {
+		resp.CreatedByName = acc.CreatedBy.FullName
+	}
+	if acc.UpdatedBy != nil {
+		resp.UpdatedByName = acc.UpdatedBy.FullName
+	}
+	return resp
 }
 
 func generateVerifyToken() string {
@@ -436,14 +527,14 @@ func (a *App) SubscribeApp(r *fastglue.Request) error {
 	ctx := context.Background()
 	if err := a.WhatsApp.SubscribeApp(ctx, a.toWhatsAppAccount(account)); err != nil {
 		a.Log.Error("Failed to subscribe app to webhooks", "error", err, "account", account.Name)
-		return r.SendEnvelope(map[string]interface{}{
+		return r.SendEnvelope(map[string]any{
 			"success": false,
 			"error":   "Failed to subscribe app to webhooks. Check your credentials.",
 		})
 	}
 
 	a.Log.Info("App subscribed to webhooks successfully", "account", account.Name, "business_id", account.BusinessID)
-	return r.SendEnvelope(map[string]interface{}{
+	return r.SendEnvelope(map[string]any{
 		"success": true,
 		"message": "App subscribed to webhooks successfully. You should now receive incoming messages.",
 	})

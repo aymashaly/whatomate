@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
+	"os/exec"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/pion/webrtc/v4"
+	"github.com/redis/go-redis/v9"
+	"github.com/shridarpatil/whatomate/internal/assignment"
 	"github.com/shridarpatil/whatomate/internal/config"
 	"github.com/shridarpatil/whatomate/internal/models"
 	"github.com/shridarpatil/whatomate/internal/storage"
@@ -21,24 +23,28 @@ import (
 
 // CallSession represents an active call with its WebRTC state
 type CallSession struct {
-	ID              string // WhatsApp call_id
-	OrganizationID  uuid.UUID
-	AccountName     string
-	CallerPhone     string
-	ContactID       uuid.UUID
-	CallLogID       uuid.UUID
-	Status          models.CallStatus
-	PeerConnection  *webrtc.PeerConnection
-	AudioTrack      *webrtc.TrackLocalStaticRTP
-	IVRGraph        *IVRFlowGraph
-	IVRCtx          *IVRContext
-	IVRFlow         *models.IVRFlow
-	IVRPlayer       *AudioPlayer // persists across goto_flow for RTP continuity
-	DTMFBuffer      chan byte
-	StartedAt       time.Time
+	ID             string // WhatsApp call_id
+	OrganizationID uuid.UUID
+	AccountName    string
+	CallerPhone    string
+	ContactID      uuid.UUID
+	CallLogID      uuid.UUID
+	Status         models.CallStatus
+	PeerConnection *webrtc.PeerConnection
+	AudioTrack     *webrtc.TrackLocalStaticRTP
+	IVRGraph       *IVRFlowGraph
+	IVRCtx         *IVRContext
+	IVRFlow        *models.IVRFlow
+	IVRPlayer      *AudioPlayer // persists across goto_flow for RTP continuity
+	DTMFBuffer     chan byte
+	StartedAt      time.Time
 
-	// Recording
-	Recorder *CallRecorder
+	// Recording (one per direction for correct OGG/Opus playback)
+	CallerRecorder *CallRecorder // caller's audio stream
+	AgentRecorder  *CallRecorder // agent's audio stream
+
+	// Transfer HTTP callbacks (configured per-node in IVR flow editor)
+	TransferCallbacks *TransferCallbacks
 
 	// Transfer fields
 	TransferID        uuid.UUID
@@ -51,21 +57,29 @@ type CallSession struct {
 	HoldPlayer        *AudioPlayer
 	TransferCancel    context.CancelFunc
 	BridgeStarted     chan struct{} // closed when bridge takes over caller track
+	TransferAccepted  chan struct{} // closed when an agent accepts the transfer (rotation signal)
 	TransferDone      chan string   // outcome sent when transfer ends; nil = terminal
-	LastRTPSeq        uint16       // last RTP seq from bridge, for post-transfer player
-	LastRTPTimestamp   uint32       // last RTP timestamp from bridge
+	LastRTPSeq        uint16        // last RTP seq from bridge, for post-transfer player
+	LastRTPTimestamp  uint32        // last RTP timestamp from bridge
 
 	// Ringback (outgoing calls)
 	RingbackPlayer *AudioPlayer
+
+	// Sticky agent for voice_call-button incoming calls. When set,
+	// HandleIncomingCall skips the IVR load and the post-media branch in
+	// webrtc.go kicks off a transfer to this agent directly (see
+	// initiateTransfer, which prefers this over the contact's
+	// assigned_user_id).
+	StickyAgentID *uuid.UUID
 
 	// Outgoing call fields
 	Direction      models.CallDirection
 	AgentID        uuid.UUID
 	TargetPhone    string
-	WAPeerConn     *webrtc.PeerConnection           // WhatsApp-side PC (outgoing only)
-	WAAudioTrack   *webrtc.TrackLocalStaticRTP       // server→WhatsApp audio track
-	WARemoteTrack  *webrtc.TrackRemote               // WhatsApp's remote audio track
-	SDPAnswerReady chan string                        // webhook delivers SDP answer here
+	WAPeerConn     *webrtc.PeerConnection      // WhatsApp-side PC (outgoing only)
+	WAAudioTrack   *webrtc.TrackLocalStaticRTP // server→WhatsApp audio track
+	WARemoteTrack  *webrtc.TrackRemote         // WhatsApp's remote audio track
+	SDPAnswerReady chan string                 // webhook delivers SDP answer here
 
 	mu sync.Mutex
 }
@@ -84,6 +98,20 @@ const (
 	IVRNodeHangup       IVRNodeType = "hangup"
 )
 
+// TransferHTTPCallback holds the configuration for a single transfer lifecycle HTTP callback.
+type TransferHTTPCallback struct {
+	URL          string            `json:"url"`
+	Method       string            `json:"method"`
+	Headers      map[string]string `json:"headers"`
+	BodyTemplate string            `json:"body_template"`
+}
+
+// TransferCallbacks holds optional HTTP callbacks for each transfer lifecycle event.
+type TransferCallbacks struct {
+	OnWaiting *TransferHTTPCallback
+	OnConnect *TransferHTTPCallback
+}
+
 // IVRNodePosition stores the (x,y) position for the visual editor.
 type IVRNodePosition struct {
 	X float64 `json:"x"`
@@ -92,11 +120,11 @@ type IVRNodePosition struct {
 
 // IVRNode represents a single node (applet) in an IVR flow graph.
 type IVRNode struct {
-	ID       string                 `json:"id"`
-	Type     IVRNodeType            `json:"type"`
-	Label    string                 `json:"label"`
-	Position IVRNodePosition        `json:"position"`
-	Config   map[string]interface{} `json:"config"`
+	ID       string          `json:"id"`
+	Type     IVRNodeType     `json:"type"`
+	Label    string          `json:"label"`
+	Position IVRNodePosition `json:"position"`
+	Config   map[string]any  `json:"config"`
 }
 
 // IVREdge connects two nodes in the flow graph.
@@ -170,10 +198,12 @@ type Manager struct {
 	wsHub    *websocket.Hub
 	config   *config.CallingConfig
 	s3       *storage.S3Client // nil when recording is disabled
+	redis    *redis.Client
+	assigner *assignment.Assigner
 }
 
 // NewManager creates a new call session manager
-func NewManager(cfg *config.CallingConfig, s3Client *storage.S3Client, db *gorm.DB, waClient *whatsapp.Client, wsHub *websocket.Hub, log logf.Logger) *Manager {
+func NewManager(cfg *config.CallingConfig, s3Client *storage.S3Client, db *gorm.DB, rd *redis.Client, waClient *whatsapp.Client, wsHub *websocket.Hub, assigner *assignment.Assigner, log logf.Logger) *Manager {
 	// Apply defaults for server-level config
 	if cfg.AudioDir == "" {
 		cfg.AudioDir = "./audio"
@@ -188,21 +218,32 @@ func NewManager(cfg *config.CallingConfig, s3Client *storage.S3Client, db *gorm.
 		cfg.TransferTimeoutSecs = 60
 	}
 
+	if cfg.PerAgentTimeoutSecs <= 0 {
+		cfg.PerAgentTimeoutSecs = 15
+	}
+
 	return &Manager{
 		sessions: make(map[string]*CallSession),
 		log:      log,
 		whatsapp: waClient,
 		db:       db,
+		redis:    rd,
 		wsHub:    wsHub,
 		config:   cfg,
 		s3:       s3Client,
+		assigner: assigner,
 	}
 }
 
 // HandleIncomingCall processes a new incoming call and starts WebRTC negotiation.
 // The sdpOffer parameter is the consumer's SDP offer received from the webhook's
 // session.sdp field in the "connect" event.
-func (m *Manager) HandleIncomingCall(account *models.WhatsAppAccount, contact *models.Contact, callLog *models.CallLog, sdpOffer string) {
+//
+// stickyAgentID, if non-nil, comes from the voice_call button payload — the
+// caller pre-validated the agent's eligibility. We bypass the IVR for these
+// calls; after WebRTC media connects, webrtc.go kicks off a transfer to this
+// agent directly instead of running runIVRFlow.
+func (m *Manager) HandleIncomingCall(account *models.WhatsAppAccount, contact *models.Contact, callLog *models.CallLog, sdpOffer string, stickyAgentID *uuid.UUID) {
 	session := &CallSession{
 		ID:             callLog.WhatsAppCallID,
 		OrganizationID: account.OrganizationID,
@@ -214,14 +255,13 @@ func (m *Manager) HandleIncomingCall(account *models.WhatsAppAccount, contact *m
 		DTMFBuffer:     make(chan byte, 32),
 		StartedAt:      time.Now(),
 		BridgeStarted:  make(chan struct{}),
+		StickyAgentID:  stickyAgentID,
 	}
 
-	// Load IVR flow if assigned
-	if callLog.IVRFlowID != nil {
-		var flow models.IVRFlow
-		if err := m.db.First(&flow, callLog.IVRFlowID).Error; err == nil {
-			session.IVRFlow = &flow
-		}
+	// Load IVR flow if assigned (cached). Skipped for sticky-routed calls —
+	// those bypass IVR entirely and go straight to a transfer.
+	if stickyAgentID == nil && callLog.IVRFlowID != nil {
+		session.IVRFlow = m.getIVRFlowCached(*callLog.IVRFlowID)
 	}
 
 	m.mu.Lock()
@@ -306,37 +346,27 @@ func (m *Manager) GetSessionByCallLogID(callLogID uuid.UUID) *CallSession {
 // orgCallingSettings holds per-org calling overrides resolved from a single DB query.
 type orgCallingSettings struct {
 	TransferTimeoutSecs int
+	MaskPhoneNumbers    bool
 	HoldMusicFile       string
 	RingbackFile        string
 }
 
-// getOrgCallingSettings loads org-level calling overrides with a single DB query,
+// transferRingFile returns the audio file the caller should hear while a
+// transfer is pending an agent's acceptance. Prefers RingbackFile (sounds
+// like "we're connecting you", closer to what a customer expects) and
+// falls back to HoldMusicFile when no ringback asset is configured for
+// the org. Empty string ⇒ silence.
+func (s orgCallingSettings) transferRingFile() string {
+	if s.RingbackFile != "" {
+		return s.RingbackFile
+	}
+	return s.HoldMusicFile
+}
+
+// getOrgCallingSettings returns cached org-level calling overrides,
 // falling back to global config defaults for any missing values.
 func (m *Manager) getOrgCallingSettings(orgID uuid.UUID) orgCallingSettings {
-	s := orgCallingSettings{
-		TransferTimeoutSecs: m.config.TransferTimeoutSecs,
-		HoldMusicFile:       filepath.Join(m.config.AudioDir, m.config.HoldMusicFile),
-	}
-	if m.config.RingbackFile != "" {
-		s.RingbackFile = filepath.Join(m.config.AudioDir, m.config.RingbackFile)
-	}
-
-	var org models.Organization
-	if err := m.db.Where("id = ?", orgID).First(&org).Error; err != nil || org.Settings == nil {
-		return s
-	}
-
-	if v, ok := org.Settings["transfer_timeout_secs"].(float64); ok && v > 0 {
-		s.TransferTimeoutSecs = int(v)
-	}
-	if v, ok := org.Settings["hold_music_file"].(string); ok && v != "" {
-		s.HoldMusicFile = filepath.Join(m.config.AudioDir, v)
-	}
-	if v, ok := org.Settings["ringback_file"].(string); ok && v != "" {
-		s.RingbackFile = filepath.Join(m.config.AudioDir, v)
-	}
-
-	return s
+	return m.getOrgCallingSettingsCached(orgID)
 }
 
 // getOrgRingback returns the ringback file path for a session's organization.
@@ -400,8 +430,10 @@ func (m *Manager) cleanupSession(callID string) {
 	session.PeerConnection = nil
 	dtmfBuffer := session.DTMFBuffer
 	session.DTMFBuffer = nil
-	recorder := session.Recorder
-	session.Recorder = nil
+	callerRec := session.CallerRecorder
+	session.CallerRecorder = nil
+	agentRec := session.AgentRecorder
+	session.AgentRecorder = nil
 	transferDone := session.TransferDone
 	session.TransferDone = nil
 
@@ -473,8 +505,8 @@ func (m *Manager) cleanupSession(callID string) {
 	}
 
 	// Finalize recording (async — don't block cleanup)
-	if recorder != nil {
-		go m.finalizeRecording(orgID, callLogID, recorder)
+	if callerRec != nil || agentRec != nil {
+		go m.finalizeRecording(orgID, callLogID, callerRec, agentRec)
 	}
 
 	m.log.Info("Call session cleaned up", "call_id", callID)
@@ -493,14 +525,28 @@ func (m *Manager) broadcastEvent(orgID uuid.UUID, eventType string, payload map[
 	})
 }
 
-// setupAudioBridge creates a recorder (if enabled), builds an AudioBridge,
-// and assigns both to the session under its lock.
+// setupAudioBridge creates per-direction recorders (if enabled), builds an
+// AudioBridge, and assigns everything to the session under its lock.
+// If recorders already exist on the session (e.g. after a transfer), they are
+// reused so the entire call is captured in continuous files.
 func (m *Manager) setupAudioBridge(session *CallSession) *AudioBridge {
-	recorder := m.newRecorderIfEnabled()
-	bridge := NewAudioBridge(recorder)
+	session.mu.Lock()
+	callerRec := session.CallerRecorder
+	agentRec := session.AgentRecorder
+	session.mu.Unlock()
+
+	if callerRec == nil {
+		callerRec = m.newRecorderIfEnabled()
+	}
+	if agentRec == nil {
+		agentRec = m.newRecorderIfEnabled()
+	}
+
+	bridge := NewAudioBridge(callerRec, agentRec)
 	session.mu.Lock()
 	session.Bridge = bridge
-	session.Recorder = recorder
+	session.CallerRecorder = callerRec
+	session.AgentRecorder = agentRec
 	session.mu.Unlock()
 	return bridge
 }
@@ -561,22 +607,74 @@ func (m *Manager) newRecorderIfEnabled() *CallRecorder {
 	return rec
 }
 
-// finalizeRecording stops the recorder, uploads the OGG file to S3, and updates the CallLog.
-func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, recorder *CallRecorder) {
-	path, packetCount := recorder.Stop()
-	defer func() { _ = os.Remove(path) }()
+// finalizeRecording stops both per-direction recorders, merges them into a
+// single OGG/Opus file using FFmpeg, uploads to S3, and updates the CallLog.
+func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, callerRec, agentRec *CallRecorder) {
+	var callerPath, agentPath string
+	var callerCount, agentCount int
 
-	if packetCount == 0 {
+	if callerRec != nil {
+		var err error
+		callerPath, callerCount, err = callerRec.Stop()
+		defer func() { _ = os.Remove(callerPath) }()
+		if err != nil {
+			m.log.Error("Caller recording had write errors", "error", err, "call_log_id", callLogID)
+		}
+	}
+	if agentRec != nil {
+		var err error
+		agentPath, agentCount, err = agentRec.Stop()
+		defer func() { _ = os.Remove(agentPath) }()
+		if err != nil {
+			m.log.Error("Agent recording had write errors", "error", err, "call_log_id", callLogID)
+		}
+	}
+
+	m.log.Info("Recording finalized",
+		"call_log_id", callLogID,
+		"caller_packets", callerCount,
+		"agent_packets", agentCount,
+		"caller_path", callerPath,
+		"agent_path", agentPath,
+	)
+
+	maxCount := callerCount
+	if agentCount > maxCount {
+		maxCount = agentCount
+	}
+	if maxCount == 0 {
 		return
 	}
 
-	// Calculate duration: each packet is 20ms, but both directions interleave,
-	// so actual call duration ≈ packetCount * 20ms / 2 (two directions).
-	durationSecs := (packetCount * 20) / 2 / 1000
+	// Duration from the longer stream (each packet = 20ms)
+	durationSecs := maxCount * 20 / 1000
+	if durationSecs == 0 && maxCount > 0 {
+		durationSecs = 1
+	}
+
+	// Merge the two direction files into one using FFmpeg.
+	// If only one direction was recorded, use it directly.
+	var uploadPath string
+	switch {
+	case callerCount > 0 && agentCount > 0:
+		merged, err := mergeRecordings(callerPath, agentPath)
+		if err != nil {
+			m.log.Error("Failed to merge recordings, uploading caller only",
+				"error", err, "call_log_id", callLogID)
+			uploadPath = callerPath
+		} else {
+			defer func() { _ = os.Remove(merged) }()
+			uploadPath = merged
+		}
+	case callerCount > 0:
+		uploadPath = callerPath
+	default:
+		uploadPath = agentPath
+	}
 
 	s3Key := fmt.Sprintf("recordings/%s/%s.ogg", orgID.String(), callLogID.String())
 
-	f, err := os.Open(path)
+	f, err := os.Open(uploadPath)
 	if err != nil {
 		m.log.Error("Failed to open recording file", "error", err, "call_log_id", callLogID)
 		return
@@ -588,20 +686,59 @@ func (m *Manager) finalizeRecording(orgID, callLogID uuid.UUID, recorder *CallRe
 
 	if err := m.s3.Upload(ctx, s3Key, f, "audio/ogg"); err != nil {
 		m.log.Error("Failed to upload recording to S3", "error", err, "call_log_id", callLogID)
+		if dbErr := m.db.Model(&models.CallLog{}).
+			Where("id = ?", callLogID).
+			Update("recording_error", err.Error()).Error; dbErr != nil {
+			m.log.Error("Failed to update call log with recording error", "error", dbErr, "call_log_id", callLogID)
+		}
 		return
 	}
 
-	m.db.Model(&models.CallLog{}).
+	if err := m.db.Model(&models.CallLog{}).
 		Where("id = ?", callLogID).
 		Updates(map[string]any{
-			"recording_s3_key":    s3Key,
+			"recording_s3_key":   s3Key,
 			"recording_duration": durationSecs,
-		})
+		}).Error; err != nil {
+		m.log.Error("Failed to update call log with recording metadata", "error", err, "s3_key", s3Key, "call_log_id", callLogID)
+	}
 
 	m.log.Info("Recording uploaded",
 		"call_log_id", callLogID,
 		"s3_key", s3Key,
-		"packets", packetCount,
+		"caller_packets", callerCount,
+		"agent_packets", agentCount,
 		"duration_secs", durationSecs,
 	)
+}
+
+// mergeRecordings uses FFmpeg to mix two mono OGG/Opus files into one.
+func mergeRecordings(file1, file2 string) (string, error) {
+	out, err := os.CreateTemp("", "call-merged-*.ogg")
+	if err != nil {
+		return "", fmt.Errorf("create temp file: %w", err)
+	}
+	outPath := out.Name()
+	_ = out.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	// file1 = caller, file2 = agent. Agent browser mic is typically quieter
+	// than WhatsApp's caller audio. Boost agent volume and use loudnorm to
+	// level both streams before mixing.
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-i", file1,
+		"-i", file2,
+		"-filter_complex",
+		"[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[a1];[1:a]volume=3,loudnorm=I=-16:TP=-1.5:LRA=11[a2];[a1][a2]amix=inputs=2:duration=longest:normalize=0",
+		"-c:a", "libopus",
+		"-y", outPath,
+	)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		_ = os.Remove(outPath)
+		return "", fmt.Errorf("ffmpeg: %w: %s", err, output)
+	}
+
+	return outPath, nil
 }

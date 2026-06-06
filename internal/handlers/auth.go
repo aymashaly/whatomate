@@ -127,6 +127,7 @@ func (a *App) Register(r *fastglue.Request) error {
 	var defaultRole models.CustomRole
 	if err := a.DB.Where("organization_id = ? AND is_default = ?", req.OrganizationID, true).First(&defaultRole).Error; err != nil {
 		if err := a.DB.Where("organization_id = ? AND name = ? AND is_system = ?", req.OrganizationID, "agent", true).First(&defaultRole).Error; err != nil {
+			a.Log.Error("Failed to find default role", "error", err)
 			return r.SendErrorEnvelope(fasthttp.StatusInternalServerError, "Failed to find default role", nil, "")
 		}
 	}
@@ -277,7 +278,7 @@ func (a *App) RefreshToken(r *fastglue.Request) error {
 	}
 
 	// Parse and validate refresh token
-	token, err := jwt.ParseWithClaims(refreshTokenStr, &middleware.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(refreshTokenStr, &middleware.JWTClaims{}, func(token *jwt.Token) (any, error) {
 		return []byte(a.Config.JWT.Secret), nil
 	})
 
@@ -496,7 +497,7 @@ func (a *App) Logout(r *fastglue.Request) error {
 
 	if refreshTokenStr != "" {
 		// Parse the token to extract JTI (don't need to fully validate — just extract claims)
-		token, _ := jwt.ParseWithClaims(refreshTokenStr, &middleware.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		token, _ := jwt.ParseWithClaims(refreshTokenStr, &middleware.JWTClaims{}, func(token *jwt.Token) (any, error) {
 			return []byte(a.Config.JWT.Secret), nil
 		})
 		if token != nil {

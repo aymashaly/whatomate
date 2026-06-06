@@ -85,8 +85,8 @@ func TestVerifyWebhookSignature(t *testing.T) {
 			want:      false,
 		},
 		{
-			name:      "empty body with valid signature for empty body",
-			body:      []byte{},
+			name: "empty body with valid signature for empty body",
+			body: []byte{},
 			signature: func() []byte {
 				m := hmac.New(sha256.New, appSecret)
 				m.Write([]byte{})
@@ -354,6 +354,7 @@ func TestUpdateMessageStatus_FailedUpdatesMessage(t *testing.T) {
 	var updatedRecipient models.BulkMessageRecipient
 	require.NoError(t, app.DB.First(&updatedRecipient, recipient.ID).Error)
 	assert.Equal(t, models.MessageStatusFailed, updatedRecipient.Status)
+	assert.Contains(t, updatedRecipient.ErrorMessage, "more than 24 hours")
 
 	// Verify campaign failed counter
 	var updatedCampaign models.BulkMessageCampaign
@@ -432,7 +433,7 @@ func TestUpdateMessageStatus_FailedBroadcastsErrorMessageViaWebSocket(t *testing
 		require.NoError(t, json.Unmarshal(data, &wsMsg))
 		assert.Equal(t, websocket.TypeStatusUpdate, wsMsg.Type)
 
-		payload, ok := wsMsg.Payload.(map[string]interface{})
+		payload, ok := wsMsg.Payload.(map[string]any)
 		require.True(t, ok, "payload should be a map")
 		assert.Equal(t, msg.ID.String(), payload["message_id"])
 		assert.Equal(t, "failed", payload["status"])
@@ -508,7 +509,7 @@ func TestUpdateMessageStatus_DeliveredBroadcastsViaWebSocket_NoErrorMessage(t *t
 		require.NoError(t, json.Unmarshal(data, &wsMsg))
 		assert.Equal(t, websocket.TypeStatusUpdate, wsMsg.Type)
 
-		payload, ok := wsMsg.Payload.(map[string]interface{})
+		payload, ok := wsMsg.Payload.(map[string]any)
 		require.True(t, ok, "payload should be a map")
 		assert.Equal(t, msg.ID.String(), payload["message_id"])
 		assert.Equal(t, "delivered", payload["status"])

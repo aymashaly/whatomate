@@ -100,9 +100,6 @@ func (a *App) getChatbotFlowsCached(orgID uuid.UUID) ([]models.ChatbotFlow, erro
 	// Cache miss - fetch from database
 	var flows []models.ChatbotFlow
 	if err := a.DB.Where("organization_id = ? AND is_enabled = true", orgID).
-		Preload("Steps", func(db *gorm.DB) *gorm.DB {
-			return db.Order("step_order ASC")
-		}).
 		Find(&flows).Error; err != nil {
 		return nil, err
 	}
@@ -612,19 +609,33 @@ func (a *App) InvalidateRolePermissionsCache(roleID uuid.UUID) {
 	roleCacheKey := fmt.Sprintf("%s%s", rolePermissionsCachePrefix, roleID.String())
 	a.Redis.Del(ctx, roleCacheKey)
 
-	// Find all users with this role and invalidate their cache
+	// Collect all user IDs that have this role (deduplicated)
+	userIDs := make(map[uuid.UUID]bool)
+
+	// Users with this role as their default role
 	var users []models.User
-	if err := a.DB.Select("id, organization_id").Where("role_id = ?", roleID).Find(&users).Error; err != nil {
+	if err := a.DB.Select("id").Where("role_id = ?", roleID).Find(&users).Error; err != nil {
 		a.Log.Error("Failed to find users for role permission cache invalidation", "error", err, "role_id", roleID)
-		return
+	}
+	for _, u := range users {
+		userIDs[u.ID] = true
 	}
 
-	for _, user := range users {
-		userCacheKey := fmt.Sprintf("%s%s", userPermissionsCachePrefix, user.ID.String())
-		a.Redis.Del(ctx, userCacheKey)
+	// Users with this role via org-specific assignment (user_organizations)
+	var orgUserIDs []uuid.UUID
+	if err := a.DB.Table("user_organizations").
+		Select("user_id").
+		Where("role_id = ? AND deleted_at IS NULL", roleID).
+		Pluck("user_id", &orgUserIDs).Error; err != nil {
+		a.Log.Error("Failed to find org users for role permission cache invalidation", "error", err, "role_id", roleID)
+	}
+	for _, uid := range orgUserIDs {
+		userIDs[uid] = true
+	}
 
-		// Notify user via WebSocket to refresh their permissions
-		a.notifyUserPermissionsChanged(user.ID)
+	// Invalidate cache for all affected users (both base and org-specific keys)
+	for uid := range userIDs {
+		a.InvalidateUserPermissionsCache(uid)
 	}
 }
 
