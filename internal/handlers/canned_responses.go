@@ -2,12 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/google/uuid"
-	"github.com/shridarpatil/whatomate/internal/audit"
 	"github.com/shridarpatil/whatomate/internal/models"
 	"github.com/valyala/fasthttp"
 	"github.com/zerodha/fastglue"
@@ -103,12 +100,7 @@ func (a *App) ListCannedResponses(r *fastglue.Request) error {
 		result[i] = cannedResponseToResponse(cr)
 	}
 
-	return r.SendEnvelope(map[string]any{
-		"canned_responses": result,
-		"total":            total,
-		"page":             pg.Page,
-		"limit":            pg.Limit,
-	})
+	return r.SendEnvelope(listEnvelope("canned_responses", result, total, pg))
 }
 
 // CreateCannedResponse creates a new canned response
@@ -157,7 +149,7 @@ func (a *App) CreateCannedResponse(r *fastglue.Request) error {
 			"Failed to create canned response", nil, "")
 	}
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+	a.logAudit(orgID, userID,
 		"canned_response", cannedResponse.ID, models.AuditActionCreated, nil, cannedResponseAuditSnapshot(&cannedResponse))
 
 	return r.SendEnvelope(cannedResponseToResponse(cannedResponse))
@@ -233,7 +225,7 @@ func (a *App) UpdateCannedResponse(r *fastglue.Request) error {
 			"Failed to update canned response", nil, "")
 	}
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+	a.logAudit(orgID, userID,
 		"canned_response", cannedResponse.ID, models.AuditActionUpdated, oldSnap, cannedResponseAuditSnapshot(&cannedResponse))
 
 	return r.SendEnvelope(cannedResponseToResponse(cannedResponse))
@@ -264,7 +256,7 @@ func (a *App) DeleteCannedResponse(r *fastglue.Request) error {
 			"Failed to delete canned response", nil, "")
 	}
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+	a.logAudit(orgID, userID,
 		"canned_response", cannedResponse.ID, models.AuditActionDeleted, cannedResponseAuditSnapshot(&cannedResponse), nil)
 
 	return r.SendEnvelope(map[string]string{"message": "Canned response deleted"})
@@ -411,60 +403,22 @@ func buttonsToAuditString(arr models.JSONBArray) string {
 	return out
 }
 
-// validateCannedResponseButtons enforces the combo rules WhatsApp Cloud API
-// imposes on free-form interactive messages. We block at save time so the
-// agent gets a clear error instead of a silent fallback to plain text at
-// send time. Frontend mirrors these checks in
-// CannedResponseDetailView.vue:buttonsValidationError; keep them in sync.
-//
-//   - voice_call is interactive.type:"voice_call" — Meta does not allow it to
-//     coexist with reply / url / phone buttons in a single send, and only
-//     one voice_call button per message.
-//   - voice_call needs a non-empty title (becomes Meta's display_text) and a
-//     ttl_minutes in [0, 60]; 0 means "use Meta's default" (15 min).
-//
-// Other combo rules (no phone, max 1 url, no reply+url mix, max 10 reply)
-// are enforced on the frontend today and left there for now since the
-// existing send path falls back gracefully to text.
+// validateCannedResponseButtons applies the shared free-form interactive
+// button rules to a canned response. The rules themselves live in
+// validateInteractiveButtons so the chatbot greeting/fallback path enforces
+// exactly the same set.
 func validateCannedResponseButtons(buttons []CannedResponseButton) error {
-	if len(buttons) == 0 {
-		return nil
-	}
-	voiceCalls := 0
-	flows := 0
-	others := 0
+	converted := make([]InteractiveButton, 0, len(buttons))
 	for _, b := range buttons {
-		switch strings.ToLower(b.Type) {
-		case "voice_call":
-			voiceCalls++
-			if strings.TrimSpace(b.Title) == "" {
-				return fmt.Errorf("voice_call button needs a title")
-			}
-			if b.TTLMinutes < 0 || b.TTLMinutes > 60 {
-				return fmt.Errorf("voice_call ttl_minutes must be between 0 and 60")
-			}
-		case "flow":
-			flows++
-			if strings.TrimSpace(b.Title) == "" {
-				return fmt.Errorf("flow button needs a CTA title")
-			}
-			if strings.TrimSpace(b.FlowID) == "" {
-				return fmt.Errorf("flow button needs a flow_id")
-			}
-		default:
-			others++
-		}
+		converted = append(converted, InteractiveButton{
+			ID:          b.ID,
+			Title:       b.Title,
+			Type:        b.Type,
+			URL:         b.URL,
+			PhoneNumber: b.PhoneNumber,
+			TTLMinutes:  b.TTLMinutes,
+			FlowID:      b.FlowID,
+		})
 	}
-	if voiceCalls > 1 {
-		return fmt.Errorf("only one voice_call button is allowed per message")
-	}
-	if flows > 1 {
-		return fmt.Errorf("only one flow button is allowed per message")
-	}
-	// voice_call and flow each render as the whole interactive message, so
-	// they can't be combined with each other or with reply/url/phone buttons.
-	if (voiceCalls > 0 || flows > 0) && (others > 0 || (voiceCalls > 0 && flows > 0)) {
-		return fmt.Errorf("voice_call and flow buttons cannot be combined with other button types")
-	}
-	return nil
+	return validateInteractiveButtons(converted)
 }

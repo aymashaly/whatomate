@@ -311,6 +311,24 @@ func (a *App) UpdateChatbotSettings(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "Invalid request body", nil, "")
 	}
 
+	// The greeting and fallback buttons go out as free-form interactive
+	// messages, which silently fail to send if the combination is not one Meta
+	// accepts. Reject at save time so the user sees why.
+	for _, field := range []struct {
+		label   string
+		buttons *[]map[string]any
+	}{
+		{"greeting_buttons", req.GreetingButtons},
+		{"fallback_buttons", req.FallbackButtons},
+	} {
+		if field.buttons == nil {
+			continue
+		}
+		if err := validateInteractiveButtons(interactiveButtonsFromMaps(*field.buttons)); err != nil {
+			return r.SendErrorEnvelope(fasthttp.StatusBadRequest, field.label+": "+err.Error(), nil, "")
+		}
+	}
+
 	// Get or create settings
 	var settings models.ChatbotSettings
 	isNew := false
@@ -588,12 +606,7 @@ func (a *App) ListKeywordRules(r *fastglue.Request) error {
 		response[i] = resp
 	}
 
-	return r.SendEnvelope(map[string]any{
-		"rules": response,
-		"total": total,
-		"page":  pg.Page,
-		"limit": pg.Limit,
-	})
+	return r.SendEnvelope(listEnvelope("rules", response, total, pg))
 }
 
 // CreateKeywordRule creates a new keyword rule
@@ -654,7 +667,7 @@ func (a *App) CreateKeywordRule(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateKeywordRulesCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "keyword_rule", rule.ID, models.AuditActionCreated, nil, &rule)
+	a.logAudit(orgID, userID, "keyword_rule", rule.ID, models.AuditActionCreated, nil, &rule)
 
 	return r.SendEnvelope(map[string]any{
 		"id":      rule.ID.String(),
@@ -770,7 +783,7 @@ func (a *App) UpdateKeywordRule(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateKeywordRulesCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "keyword_rule", rule.ID, models.AuditActionUpdated, &oldRule, rule)
+	a.logAudit(orgID, userID, "keyword_rule", rule.ID, models.AuditActionUpdated, &oldRule, rule)
 
 	return r.SendEnvelope(map[string]any{
 		"message": "Keyword rule updated successfully",
@@ -803,7 +816,7 @@ func (a *App) DeleteKeywordRule(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateKeywordRulesCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "keyword_rule", id, models.AuditActionDeleted, &rule, nil)
+	a.logAudit(orgID, userID, "keyword_rule", id, models.AuditActionDeleted, &rule, nil)
 
 	return r.SendEnvelope(map[string]any{
 		"message": "Keyword rule deleted successfully",
@@ -854,12 +867,7 @@ func (a *App) ListChatbotFlows(r *fastglue.Request) error {
 		}
 	}
 
-	return r.SendEnvelope(map[string]any{
-		"flows": response,
-		"total": total,
-		"page":  pg.Page,
-		"limit": pg.Limit,
-	})
+	return r.SendEnvelope(listEnvelope("flows", response, total, pg))
 }
 
 // CreateChatbotFlow creates a new chatbot flow
@@ -919,7 +927,7 @@ func (a *App) CreateChatbotFlow(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateChatbotFlowsCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+	a.logAudit(orgID, userID,
 		"chatbot_flow", flow.ID, models.AuditActionCreated, nil, &flow)
 
 	return r.SendEnvelope(map[string]any{
@@ -1033,7 +1041,7 @@ func (a *App) UpdateChatbotFlow(r *fastglue.Request) error {
 
 	a.InvalidateChatbotFlowsCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+	a.logAudit(orgID, userID,
 		"chatbot_flow", flow.ID, models.AuditActionUpdated, &oldFlow, flow)
 
 	return r.SendEnvelope(map[string]any{
@@ -1088,7 +1096,7 @@ func (a *App) DeleteChatbotFlow(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateChatbotFlowsCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID),
+	a.logAudit(orgID, userID,
 		"chatbot_flow", id, models.AuditActionDeleted, &flowForAudit, nil)
 
 	return r.SendEnvelope(map[string]any{
@@ -1147,12 +1155,7 @@ func (a *App) ListAIContexts(r *fastglue.Request) error {
 		response[i] = resp
 	}
 
-	return r.SendEnvelope(map[string]any{
-		"contexts": response,
-		"total":    total,
-		"page":     pg.Page,
-		"limit":    pg.Limit,
-	})
+	return r.SendEnvelope(listEnvelope("contexts", response, total, pg))
 }
 
 // CreateAIContext creates a new AI context
@@ -1205,7 +1208,7 @@ func (a *App) CreateAIContext(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateAIContextsCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "ai_context", ctx.ID, models.AuditActionCreated, nil, &ctx)
+	a.logAudit(orgID, userID, "ai_context", ctx.ID, models.AuditActionCreated, nil, &ctx)
 
 	return r.SendEnvelope(map[string]any{
 		"id":      ctx.ID.String(),
@@ -1319,7 +1322,7 @@ func (a *App) UpdateAIContext(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateAIContextsCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "ai_context", aiCtx.ID, models.AuditActionUpdated, &oldCtx, aiCtx)
+	a.logAudit(orgID, userID, "ai_context", aiCtx.ID, models.AuditActionUpdated, &oldCtx, aiCtx)
 
 	return r.SendEnvelope(map[string]any{
 		"message": "AI context updated successfully",
@@ -1352,7 +1355,7 @@ func (a *App) DeleteAIContext(r *fastglue.Request) error {
 	// Invalidate cache
 	a.InvalidateAIContextsCache(orgID)
 
-	audit.LogAudit(a.DB, orgID, userID, audit.GetUserName(a.DB, userID), "ai_context", id, models.AuditActionDeleted, &aiCtx, nil)
+	a.logAudit(orgID, userID, "ai_context", id, models.AuditActionDeleted, &aiCtx, nil)
 
 	return r.SendEnvelope(map[string]any{
 		"message": "AI context deleted successfully",
