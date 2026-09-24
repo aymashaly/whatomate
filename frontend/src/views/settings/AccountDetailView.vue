@@ -190,7 +190,7 @@ async function save() {
       const created = response.data.data || response.data
       hasChanges.value = false
       toast.success(t('common.createdSuccess', { resource: t('resources.Account') }))
-      router.replace(`/settings/accounts/${created.id}`)
+      router.replace(`/app/settings/accounts/${created.id}`)
     } else {
       await api.put(`/accounts/${account.value!.id}`, payload)
       await loadAccount()
@@ -209,7 +209,7 @@ async function deleteAccount() {
   try {
     await api.delete(`/accounts/${account.value.id}`)
     toast.success(t('common.deletedSuccess', { resource: t('resources.Account') }))
-    router.push('/settings/accounts')
+    router.push('/app/settings/accounts')
   } catch (e) {
     toast.error(getErrorMessage(e, t('common.failedDelete', { resource: t('resources.account') })))
   }
@@ -277,7 +277,7 @@ onMounted(async () => {
     :title="isNew ? $t('accounts.newAccount', 'New Account') : (account?.name || '')"
     :icon="Phone"
     icon-gradient="bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-500/20"
-    back-link="/settings/accounts"
+    back-link="/app/settings/accounts"
     :breadcrumbs="breadcrumbs"
     :is-loading="isLoading"
     :is-not-found="isNotFound"
@@ -506,7 +506,7 @@ onMounted(async () => {
             <li>{{ $t('accounts.setupStep1', 'Go to') }} <a href="https://developers.facebook.com" target="_blank" class="text-primary hover:underline">Meta Developer Console</a> {{ $t('accounts.setupStep1End', 'and create an app') }}</li>
             <li>{{ $t('accounts.setupStep2', 'Add WhatsApp product to your app') }}</li>
             <li>{{ $t('accounts.setupStep3', 'Copy') }} <strong>{{ $t('accounts.setupStep3Bold1', 'Phone Number ID') }}</strong> {{ $t('accounts.setupStep3And', 'and') }} <strong>{{ $t('accounts.setupStep3Bold2', 'Business Account ID') }}</strong></li>
-            <li>{{ $t('accounts.setupStep4', 'Generate a permanent token from') }} <a href="https://business.facebook.com/settings/system-users" target="_blank" class="text-primary hover:underline">Business Settings</a></li>
+            <li>{{ $t('accounts.setupStep4', 'Generate a permanent token from') }} <a href="https://business.facebook.com/app/settings/system-users" target="_blank" class="text-primary hover:underline">Business Settings</a></li>
             <li>{{ $t('accounts.setupStep5', 'Configure the webhook URL and verify token in Meta dashboard') }}</li>
             <li>{{ $t('accounts.setupStep6', 'Click Test Connection to verify') }}</li>
           </ol>

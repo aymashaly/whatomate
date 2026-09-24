@@ -120,16 +120,16 @@ const emptyDescription = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
+  <div class="flex flex-col h-full">
     <PageHeader
       :title="$t('keywords.title')"
       :icon="Key"
       icon-gradient="bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/20"
-      back-link="/chatbot"
+      back-link="/app/chatbot"
       :breadcrumbs="[{ label: $t('keywords.backToChatbot'), href: '/chatbot' }, { label: $t('nav.keywords') }]"
     >
       <template #actions>
-        <RouterLink to="/chatbot/keywords/new">
+        <RouterLink to="/app/chatbot/keywords/new">
           <Button variant="outline" size="sm">
             <Plus class="h-4 w-4 mr-2" />
             {{ $t('keywords.addRule') }}
@@ -141,90 +141,94 @@ const emptyDescription = computed(() => {
     <ScrollArea class="flex-1">
       <div class="p-6">
         <div>
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between">
-                <div>
-                  <CardTitle>{{ $t('keywords.yourRules') }}</CardTitle>
-                  <CardDescription>{{ $t('keywords.yourRulesDesc') }}</CardDescription>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <CardTitle>{{ $t('keywords.yourRules') }}</CardTitle>
+                    <CardDescription>{{ $t('keywords.yourRulesDesc') }}</CardDescription>
+                  </div>
+                  <SearchInput v-model="searchQuery" :placeholder="$t('keywords.searchKeywords') + '...'" class="w-64" />
                 </div>
-                <SearchInput v-model="searchQuery" :placeholder="$t('keywords.searchKeywords') + '...'" class="w-64" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ErrorState
-                v-if="error"
-                :title="$t('common.loadErrorTitle')"
-                :description="error"
-                :retry-label="$t('common.retry')"
-                @retry="fetchRules"
-              />
-              <DataTable
-                v-else
-                :items="rules"
-                :columns="columns"
-                :is-loading="isLoading"
-                :empty-icon="Key"
-                :empty-title="searchQuery ? $t('keywords.noMatchingRules') : $t('keywords.noRulesYet')"
-                :empty-description="emptyDescription"
-                v-model:sort-key="sortKey"
-                v-model:sort-direction="sortDirection"
-                server-pagination
-                :current-page="currentPage"
-                :total-items="totalItems"
-                :page-size="pageSize"
-                item-name="rules"
-                @page-change="handlePageChange"
-              >
-                <template #cell-keywords="{ item: rule }">
-                  <RouterLink :to="`/chatbot/keywords/${rule.id}`" class="flex flex-wrap gap-1 text-inherit no-underline hover:opacity-80">
-                    <Badge v-for="keyword in rule.keywords.slice(0, 3)" :key="keyword" variant="outline" class="text-xs">
-                      {{ keyword }}
+              </CardHeader>
+              <CardContent>
+                <ErrorState
+                  v-if="error"
+                  :title="$t('common.loadErrorTitle')"
+                  :description="error"
+                  :retry-label="$t('common.retry')"
+                  @retry="fetchRules"
+                />
+                <DataTable
+                  v-else
+                  :items="rules"
+                  :columns="columns"
+                  :is-loading="isLoading"
+                  :empty-icon="Key"
+                  :empty-title="searchQuery ? $t('keywords.noMatchingRules') : $t('keywords.noRulesYet')"
+                  :empty-description="emptyDescription"
+                  v-model:sort-key="sortKey"
+                  v-model:sort-direction="sortDirection"
+                  server-pagination
+                  :current-page="currentPage"
+                  :total-items="totalItems"
+                  :page-size="pageSize"
+                  item-name="rules"
+                  @page-change="handlePageChange"
+                >
+                  <template #cell-keywords="{ item: rule }">
+                    <RouterLink :to="`/app/chatbot/keywords/${rule.id}`" class="flex flex-wrap gap-1 text-inherit no-underline hover:opacity-80">
+                      <Badge v-for="keyword in rule.keywords.slice(0, 3)" :key="keyword" variant="outline" class="text-xs">
+                        {{ keyword }}
+                      </Badge>
+                      <Badge v-if="rule.keywords.length > 3" variant="outline" class="text-xs">
+                        +{{ rule.keywords.length - 3 }}
+                      </Badge>
+                    </RouterLink>
+                  </template>
+                  <template #cell-match_type="{ item: rule }">
+                    <Badge class="text-xs capitalize bg-blue-500/20 text-blue-400 border-transparent">{{ rule.match_type }}</Badge>
+                  </template>
+                  <template #cell-response_type="{ item: rule }">
+                    <Badge
+                      :class="rule.response_type === 'transfer'
+                        ? 'bg-red-500/20 text-red-400 border-transparent light:bg-red-100 light:text-red-700'
+                        : 'bg-purple-500/20 text-purple-400 border-transparent light:bg-purple-100 light:text-purple-700'"
+                      class="text-xs"
+                    >
+                      {{ rule.response_type === 'transfer' ? $t('keywords.transfer') : $t('keywords.text') }}
                     </Badge>
-                    <Badge v-if="rule.keywords.length > 3" variant="outline" class="text-xs">
-                      +{{ rule.keywords.length - 3 }}
-                    </Badge>
-                  </RouterLink>
-                </template>
-                <template #cell-match_type="{ item: rule }">
-                  <Badge class="text-xs capitalize bg-blue-500/20 text-blue-400 border-transparent">{{ rule.match_type }}</Badge>
-                </template>
-                <template #cell-response_type="{ item: rule }">
-                  <Badge
-                    :class="rule.response_type === 'transfer'
-                      ? 'bg-red-500/20 text-red-400 border-transparent light:bg-red-100 light:text-red-700'
-                      : 'bg-purple-500/20 text-purple-400 border-transparent light:bg-purple-100 light:text-purple-700'"
-                    class="text-xs"
-                  >
-                    {{ rule.response_type === 'transfer' ? $t('keywords.transfer') : $t('keywords.text') }}
-                  </Badge>
-                </template>
-                <template #cell-priority="{ item: rule }">
-                  <span class="text-muted-foreground">{{ rule.priority }}</span>
-                </template>
-                <template #cell-status="{ item: rule }">
-                  <div class="flex items-center gap-2">
-                    <Switch :checked="rule.enabled" @update:checked="toggleRule(rule)" />
-                    <span class="text-sm text-muted-foreground">{{ rule.enabled ? $t('keywords.active') : $t('keywords.inactive') }}</span>
-                  </div>
-                </template>
-                <template #cell-actions="{ item: rule }">
-                  <div class="flex items-center justify-end gap-1">
-                    <RouterLink :to="`/chatbot/keywords/${rule.id}`"><IconButton :icon="Pencil" :label="$t('keywords.editRuleLabel')" class="h-8 w-8" /></RouterLink>
-                    <IconButton :icon="Trash2" :label="$t('keywords.deleteRuleLabel')" class="h-8 w-8 text-destructive" @click="openDeleteDialog(rule)" />
-                  </div>
-                </template>
-                <template #empty-action>
-                  <RouterLink v-if="!searchQuery" to="/chatbot/keywords/new">
-                    <Button variant="outline" size="sm">
-                      <Plus class="h-4 w-4 mr-2" />
-                      {{ $t('keywords.addRule') }}
-                    </Button>
-                  </RouterLink>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                  </template>
+                  <template #cell-priority="{ item: rule }">
+                    <span class="text-muted-foreground">{{ rule.priority }}</span>
+                  </template>
+                  <template #cell-status="{ item: rule }">
+                    <div class="flex items-center gap-2">
+                      <Switch :checked="rule.enabled" @update:checked="toggleRule(rule)" />
+                      <span class="text-sm text-muted-foreground">{{ rule.enabled ? $t('keywords.active') : $t('keywords.inactive') }}</span>
+                    </div>
+                  </template>
+                  <template #cell-actions="{ item: rule }">
+                    <div class="flex items-center justify-end gap-1">
+                      <RouterLink :to="`/app/chatbot/keywords/${rule.id}`"><IconButton :icon="Pencil" :label="$t('keywords.editRuleLabel')" class="h-8 w-8" /></RouterLink>
+                      <IconButton :icon="Trash2" :label="$t('keywords.deleteRuleLabel')" class="h-8 w-8 text-destructive" @click="openDeleteDialog(rule)" />
+                    </div>
+                  </template>
+                  <template #empty-action>
+                    <RouterLink v-if="!searchQuery" to="/app/chatbot/keywords/new">
+                      <Button variant="outline" size="sm">
+                        <Plus class="h-4 w-4 mr-2" />
+                        {{ $t('keywords.addRule') }}
+                      </Button>
+                    </RouterLink>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

@@ -700,7 +700,7 @@ async function switchAccount(accountName: string) {
 }
 
 function handleContactClick(contact: Contact) {
-  router.push(`/chat/${contact.id}`)
+  router.push(`/app/chat/${contact.id}`)
 }
 
 async function sendMessage() {
@@ -1267,7 +1267,7 @@ async function resumeChatbot() {
         // Contact no longer visible to this user, navigate away
         contactsStore.setCurrentContact(null)
         contactsStore.clearMessages()
-        router.push('/chat')
+        router.push('/app/chat')
       }
     }
   } catch (error: any) {
@@ -1696,28 +1696,31 @@ async function sendMediaMessage() {
 </script>
 
 <template>
-  <div class="flex h-full bg-[#0a0a0b] light:bg-gray-50">
-    <!-- Contacts List -->
-    <div class="w-80 border-r border-white/[0.08] light:border-gray-200 flex flex-col bg-[#0a0a0b] light:bg-white">
+  <div class="flex h-full gap-2 p-2">
+    <!-- Contacts List panel — neumorphic tile -->
+    <div
+      class="neu-card w-80 shrink-0 flex flex-col rounded-2xl overflow-hidden !rounded-2xl"
+    >
       <!-- Search Header -->
-      <div class="p-2 border-b border-white/[0.08] light:border-gray-200">
+      <div class="px-3 py-2.5 border-b border-border">
         <div class="flex items-center gap-2">
           <div class="relative flex-1">
-            <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/40 light:text-gray-400" />
-            <Input
-              v-model="contactsStore.searchQuery"
-              :placeholder="$t('chat.searchContacts') + '...'"
-              class="pl-8 h-8 text-sm bg-white/[0.04] border-white/[0.1] text-white placeholder:text-white/40 light:bg-gray-50 light:border-gray-200 light:text-gray-900 light:placeholder:text-gray-400"
-            />
+            <div class="neu-input flex items-center h-9 px-2">
+              <Search class="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
+              <Input
+                v-model="contactsStore.searchQuery"
+                :placeholder="$t('chat.searchContacts') + '...'"
+                class="!bg-transparent !border-0 !shadow-none !h-auto !py-0 !px-0 !ring-0 !ring-offset-0 flex-1 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-0"
+              />
+            </div>
           </div>
-          <!-- Add Contact -->
           <Tooltip v-if="canWriteContacts">
             <TooltipTrigger as-child>
               <Button
                 variant="ghost"
                 size="icon"
                 :aria-label="$t('chat.addContact')"
-                class="h-8 w-8 shrink-0 text-white/40 hover:text-white hover:bg-white/[0.08] light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100"
+                class="spring-pressable h-9 w-9 shrink-0 rounded-xl neu-button !border-transparent text-muted-foreground hover:text-foreground"
                 @click="openAddContactDialog"
               >
                 <UserPlus class="h-4 w-4" />
@@ -1725,14 +1728,13 @@ async function sendMediaMessage() {
             </TooltipTrigger>
             <TooltipContent>{{ $t('chat.addContact') }}</TooltipContent>
           </Tooltip>
-          <!-- Tag Filter -->
           <Popover v-model:open="isTagFilterOpen">
             <PopoverTrigger as-child>
               <Button
                 variant="ghost"
                 size="icon"
-                class="h-8 w-8 shrink-0 relative"
-                :class="contactsStore.selectedTags.length > 0 ? 'text-emerald-400 bg-emerald-500/10' : 'text-white/40 hover:text-white hover:bg-white/[0.08] light:text-gray-500 light:hover:text-gray-900 light:hover:bg-gray-100'"
+                class="spring-pressable h-9 w-9 shrink-0 relative rounded-xl neu-button !border-transparent"
+                :class="contactsStore.selectedTags.length > 0 ? 'text-emerald-600' : 'text-muted-foreground hover:text-foreground'"
               >
                 <Filter class="h-4 w-4" />
                 <span v-if="contactsStore.selectedTags.length > 0" class="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 text-[10px] text-white flex items-center justify-center">
@@ -1762,15 +1764,15 @@ async function sendMediaMessage() {
                   <button
                     v-for="tag in tagsStore.tags"
                     :key="tag.name"
-                    class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-white/[0.08] light:hover:bg-gray-100 transition-colors"
-                    :class="contactsStore.selectedTags.includes(tag.name) && 'bg-white/[0.08] light:bg-gray-100'"
+                    class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-foreground/[0.06] light:hover:bg-gray-100 transition-colors"
+                    :class="contactsStore.selectedTags.includes(tag.name) && 'bg-foreground/[0.06] light:bg-gray-100'"
                     @click="toggleTagFilter(tag.name)"
                   >
                     <span :class="['w-2 h-2 rounded-full shrink-0', getTagColorClass(tag.color).split(' ')[0]]" />
                     <span class="flex-1 text-left truncate">{{ tag.name }}</span>
                     <Check
                       v-if="contactsStore.selectedTags.includes(tag.name)"
-                      class="h-4 w-4 text-emerald-400 shrink-0"
+                      class="h-4 w-4 text-emerald-600 shrink-0"
                     />
                   </button>
                 </div>
@@ -1778,7 +1780,6 @@ async function sendMediaMessage() {
             </PopoverContent>
           </Popover>
         </div>
-        <!-- Active tag filters -->
         <div v-if="contactsStore.selectedTags.length > 0" class="flex flex-wrap gap-1 mt-2">
           <TagBadge
             v-for="tagName in contactsStore.selectedTags"
@@ -1795,17 +1796,19 @@ async function sendMediaMessage() {
 
       <!-- Contacts -->
       <ScrollArea :ref="(el: any) => contactsScroll.scrollAreaRef.value = el" orientation="vertical" class="flex-1">
-        <div class="py-1 w-full">
+        <div class="p-2 w-full space-y-1">
           <div
             v-for="contact in contactsStore.sortedContacts"
             :key="contact.id"
             :class="[
-              'flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-white/[0.04] light:hover:bg-gray-50 transition-colors',
-              contactsStore.currentContact?.id === contact.id && 'bg-white/[0.08] light:bg-gray-100'
+              'group flex items-center gap-3 mx-1 my-0.5 px-3 py-2 rounded-xl cursor-pointer transition',
+              contactsStore.currentContact?.id === contact.id
+                ? 'bg-emerald-500/12 text-emerald-700 light:bg-emerald-100'
+                : 'hover:bg-foreground/[0.04] light:hover:bg-gray-100'
             ]"
             @click="handleContactClick(contact)"
           >
-            <Avatar class="h-9 w-9 ring-2 ring-white/[0.1] light:ring-gray-200">
+            <Avatar class="h-10 w-10 ring-1 ring-white/[0.08] light:ring-gray-200 transition-transform group-hover:scale-[1.03]">
               <AvatarImage :src="contact.avatar_url" />
               <AvatarFallback :class="'text-xs bg-gradient-to-br text-white ' + getAvatarGradient(contact.name || contact.phone_number)">
                 {{ getInitials(contact.name || contact.phone_number) }}
@@ -1814,32 +1817,31 @@ async function sendMediaMessage() {
             <div class="flex-1 min-w-0">
               <div class="flex items-center justify-between gap-2">
                 <p
-                  class="flex-1 min-w-0 text-sm font-medium truncate text-white light:text-gray-900"
+                  class="flex-1 min-w-0 text-sm font-medium truncate text-foreground"
                   :title="contact.name || contact.phone_number"
                 >
                   {{ contact.name || contact.phone_number }}
                 </p>
-                <span class="flex-shrink-0 text-[11px] text-white/40 light:text-gray-500">
+                <span class="flex-shrink-0 text-[11px] text-muted-foreground">
                   {{ formatContactTime(contact.last_message_at) }}
                 </span>
               </div>
               <div class="flex items-center justify-between gap-2">
-                <p class="flex-1 min-w-0 text-xs text-white/50 light:text-gray-500 truncate">
+                <p class="flex-1 min-w-0 text-xs text-muted-foreground truncate">
                   {{ contact.phone_number }}
                 </p>
-                <Badge v-if="contact.unread_count > 0" class="flex-shrink-0 h-5 text-[10px] bg-emerald-500/20 text-emerald-400 light:bg-emerald-100 light:text-emerald-700">
+                <Badge v-if="contact.unread_count > 0" class="flex-shrink-0 h-5 min-w-5 px-1.5 text-[10px] bg-emerald-500 text-white border-0">
                   {{ contact.unread_count }}
                 </Badge>
               </div>
             </div>
           </div>
 
-          <!-- Loading indicator for infinite scroll -->
           <div v-if="contactsStore.isLoadingMoreContacts" class="p-3 text-center">
-            <Loader2 class="h-5 w-5 mx-auto animate-spin text-white/40 light:text-gray-400" />
+            <Loader2 class="h-5 w-5 mx-auto animate-spin text-muted-foreground" />
           </div>
 
-          <div v-if="contactsStore.sortedContacts.length === 0" class="p-3 text-center text-white/40 light:text-gray-500">
+          <div v-if="contactsStore.sortedContacts.length === 0" class="p-3 text-center text-muted-foreground">
             <User class="h-6 w-6 mx-auto mb-1.5 opacity-50" />
             <p class="text-sm">{{ $t('chat.noContacts') }}</p>
           </div>
@@ -1847,26 +1849,26 @@ async function sendMediaMessage() {
       </ScrollArea>
     </div>
 
-    <!-- Chat Area -->
-    <div class="flex-1 flex flex-col bg-[#0f0f10] light:bg-gray-50">
+    <!-- Chat Area — matching floating glass / neumorphic panel -->
+    <div class="glass flex-1 flex flex-col rounded-2xl overflow-hidden relative light:!bg-white/85">
       <!-- No Contact Selected -->
       <div
         v-if="!contactsStore.currentContact"
-        class="flex-1 flex items-center justify-center text-white/40 light:text-gray-500"
+        class="flex-1 flex items-center justify-center text-muted-foreground relative"
       >
         <div class="text-center">
-          <div class="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
-            <Send class="h-8 w-8 text-white" />
+          <div class="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mx-auto mb-4 shadow-sm ring-1 ring-white/[0.10]">
+            <Send class="h-7 w-7 text-white" />
           </div>
-          <h3 class="font-medium text-lg mb-1 text-white light:text-gray-900">{{ $t('chat.selectConversation') }}</h3>
-          <p class="text-sm text-white/50 light:text-gray-500">{{ $t('chat.chooseContact') }}</p>
+          <h3 class="display text-[15px] tracking-tight text-foreground">{{ $t('chat.selectConversation') }}</h3>
+          <p class="text-xs text-muted-foreground mt-1">{{ $t('chat.chooseContact') }}</p>
         </div>
       </div>
 
       <!-- Chat Interface -->
       <template v-else>
         <!-- Chat Header -->
-        <div class="h-14 flex-shrink-0 px-4 border-b border-white/[0.08] light:border-gray-200 flex items-center justify-between bg-[#0f0f10] light:bg-white">
+        <div class="h-14 flex-shrink-0 px-4 border-b border-border flex items-center justify-between">
           <div class="flex items-center gap-2">
             <Avatar class="h-8 w-8 ring-2 ring-white/[0.1] light:ring-gray-200">
               <AvatarImage :src="contactsStore.currentContact.avatar_url" />
@@ -2001,17 +2003,17 @@ async function sendMediaMessage() {
         <!-- Account Tabs (shown when contact has messages from multiple WhatsApp accounts) -->
         <div
           v-if="orgAccounts.length > 1 && selectedAccount"
-          class="flex-shrink-0 px-4 py-2 border-b border-white/[0.08] light:border-gray-200 bg-[#0a0a0b] light:bg-gray-50"
+          class="flex-shrink-0 px-4 py-2 border-b border-border"
         >
-          <div class="inline-flex items-center gap-1 rounded-lg bg-white/[0.06] light:bg-gray-100 p-1">
+          <div class="inline-flex items-center gap-1 rounded-lg neu-inset p-1">
             <button
               v-for="acct in orgAccounts"
               :key="acct.name"
               :class="[
                 'rounded-md px-3 py-1 text-xs font-medium whitespace-nowrap transition-all',
                 acct.name === selectedAccount
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-white/[0.08] text-white/70 hover:text-white/90 hover:bg-white/[0.12] light:bg-gray-200 light:text-gray-600 light:hover:text-gray-800 light:hover:bg-gray-300'
+                  ? 'bg-card text-emerald-600 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               ]"
               @click="switchAccount(acct.name)"
             >
@@ -2029,7 +2031,7 @@ async function sendMediaMessage() {
           <Transition name="sticky-date">
             <div
               v-if="showStickyDate"
-              class="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1 bg-white/[0.08] light:bg-gray-200 backdrop-blur-sm rounded-full text-[11px] text-white/50 light:text-gray-600 font-medium shadow-sm"
+              class="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1 bg-card rounded-full text-[11px] text-muted-foreground font-medium shadow-sm border border-border"
             >
               {{ stickyDate }}
             </div>
@@ -2054,18 +2056,17 @@ async function sendMediaMessage() {
                   class="flex items-center justify-center my-4"
                   :data-date-separator="getDateLabel(message.created_at)"
                 >
-                  <div class="px-3 py-1 bg-white/[0.06] light:bg-gray-200 rounded-full text-[11px] text-white/40 light:text-gray-600 font-medium">
+                  <div class="px-3 py-1 bg-card rounded-full text-[11px] text-muted-foreground font-medium shadow-sm border border-border">
                     {{ getDateLabel(message.created_at) }}
                   </div>
                 </div>
 
-                <!-- Unread divider (WhatsApp-style; appears above the first
-                     message that arrived while the tab was hidden) -->
+                <!-- Unread divider -->
                 <div
                   v-if="newMessagesCount > 0 && message.id === firstUnreadId"
                   class="flex items-center justify-center my-4"
                 >
-                  <div class="px-3 py-1 bg-white/[0.06] light:bg-gray-200 rounded-full text-[11px] text-white/40 light:text-gray-600 font-medium">
+                  <div class="px-3 py-1 bg-emerald-500/15 rounded-full text-[11px] text-emerald-700 font-medium border border-emerald-500/30">
                     {{ newMessagesCount }} {{ newMessagesCount === 1 ? $t('chat.unreadMessage', 'unread message') : $t('chat.unreadMessages', 'unread messages') }}
                   </div>
                 </div>
@@ -2462,15 +2463,15 @@ async function sendMediaMessage() {
         </div>
 
         <!-- Message Input -->
-        <div class="p-4 border-t border-white/[0.08] light:border-gray-200 bg-[#0f0f10] light:bg-white">
-          <form @submit.prevent="sendMessage" class="flex items-center gap-2 p-2 rounded-xl bg-white/[0.06] light:bg-gray-100 border border-white/[0.08] light:border-gray-200">
+        <div class="p-3 border-t border-border">
+          <form @submit.prevent="sendMessage" class="flex items-center gap-1 p-1.5 rounded-2xl neu-input">
             <Tooltip>
               <TooltipTrigger as-child>
                 <span>
                   <Popover v-model:open="emojiPickerOpen">
                     <PopoverTrigger as-child>
-                      <button type="button" class="w-9 h-9 rounded-lg hover:bg-white/[0.08] light:hover:bg-gray-200 flex items-center justify-center transition-colors">
-                        <Smile class="w-[18px] h-[18px] text-white/40 light:text-gray-500" />
+                      <button type="button" class="spring-pressable w-9 h-9 rounded-xl hover:bg-foreground/[0.05] flex items-center justify-center transition">
+                        <Smile class="w-[18px] h-[18px] text-muted-foreground" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent side="top" align="start" class="w-auto p-0">
@@ -2512,8 +2513,8 @@ async function sendMediaMessage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger as-child>
-                <button type="button" class="w-9 h-9 rounded-lg hover:bg-white/[0.08] light:hover:bg-gray-200 flex items-center justify-center transition-colors" @click="openFilePicker">
-                  <Paperclip class="w-[18px] h-[18px] text-white/40 light:text-gray-500" />
+                <button type="button" class="spring-pressable w-9 h-9 rounded-xl hover:bg-foreground/[0.05] flex items-center justify-center transition" @click="openFilePicker">
+                  <Paperclip class="w-[18px] h-[18px] text-muted-foreground" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{{ $t('chat.attachFile') }}</TooltipContent>
@@ -2530,11 +2531,11 @@ async function sendMediaMessage() {
               v-model="messageInput"
               :placeholder="$t('chat.typeMessage') + '...'"
               rows="1"
-              class="flex-1 bg-transparent text-[14px] text-white light:text-gray-900 placeholder:text-white/30 light:placeholder:text-gray-400 focus:outline-none resize-none min-h-[36px] max-h-[120px] py-2 overflow-y-auto"
+              class="flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground/70 focus:outline-none resize-none min-h-[36px] max-h-[120px] py-2 px-1 overflow-y-auto"
               @keydown.enter.exact.prevent="sendMessage"
               @input="autoResizeTextarea"
             />
-            <button type="submit" class="w-9 h-9 rounded-lg bg-emerald-600 hover:bg-emerald-500 light:bg-emerald-500 light:hover:bg-emerald-600 flex items-center justify-center transition-colors disabled:opacity-50" :disabled="!messageInput.trim() || isSending">
+            <button type="submit" class="spring-pressable w-9 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center transition disabled:opacity-40 shadow-sm" :disabled="!messageInput.trim() || isSending">
               <Send class="w-4 h-4 text-white" />
             </button>
           </form>

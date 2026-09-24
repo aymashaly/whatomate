@@ -45,22 +45,51 @@ type MetaAPIError struct {
 	} `json:"error"`
 }
 
-// ParseError attempts to parse respBody as a Meta API error. If successful,
-// it returns a formatted error including code, message, details, and user message.
-// If parsing fails, it returns a generic error with the status code and raw body.
+// APIError wraps a Meta API error along with the upstream HTTP status code so
+// callers can return the right HTTP status to their own clients (4xx from Meta
+// → 400 to us, 5xx → 502, etc.). Without this wrapper, every Meta failure
+// turned into a flat 502 — which Cloudflare intercepts as origin_bad_gateway
+// and surfaces as its own branded error page instead of letting our JSON
+// error reach the UI.
+type APIError struct {
+	StatusCode int  // HTTP status Meta returned
+	Code       int  // Meta's internal error code (e.g. 100 = invalid parameter)
+	Message    string
+	UserMsg    string
+	Details    string
+}
+
+func (e *APIError) Error() string {
+	msg := fmt.Sprintf("API error %d: %s", e.Code, e.Message)
+	if e.Details != "" {
+		msg += " - Details: " + e.Details
+	}
+	if e.UserMsg != "" {
+		msg += " - " + e.UserMsg
+	}
+	return msg
+}
+
+// ParseMetaAPIError attempts to parse respBody as a Meta API error. On
+// success it returns an *APIError carrying both the Meta status code and
+// the structured error fields. If parsing fails it falls back to a generic
+// error wrapping the status code and raw body.
 func ParseMetaAPIError(statusCode int, respBody []byte) error {
 	var apiErr MetaAPIError
 	if err := json.Unmarshal(respBody, &apiErr); err == nil && apiErr.Error.Message != "" {
-		errMsg := fmt.Sprintf("API error %d: %s", apiErr.Error.Code, apiErr.Error.Message)
-		if apiErr.Error.ErrorData.Details != "" {
-			errMsg += " - Details: " + apiErr.Error.ErrorData.Details
+		return &APIError{
+			StatusCode: statusCode,
+			Code:       apiErr.Error.Code,
+			Message:    apiErr.Error.Message,
+			UserMsg:    apiErr.Error.ErrorUserMsg,
+			Details:    apiErr.Error.ErrorData.Details,
 		}
-		if apiErr.Error.ErrorUserMsg != "" {
-			errMsg += " - " + apiErr.Error.ErrorUserMsg
-		}
-		return fmt.Errorf("%s", errMsg)
 	}
-	return fmt.Errorf("API returned status %d: %s", statusCode, string(respBody))
+	return &APIError{
+		StatusCode: statusCode,
+		Code:       0,
+		Message:    fmt.Sprintf("API returned status %d: %s", statusCode, string(respBody)),
+	}
 }
 
 // TemplateResponse represents response from template submission

@@ -732,6 +732,49 @@ export const organizationService = {
   }
 }
 
+// Platform Branding (super-admin only for writes; public read)
+export interface PlatformBranding {
+  id: string
+  brand_name: string
+  brand_tagline: string
+  logo_url: string
+  favicon_url: string
+  primary_color: string
+  accent_color: string
+  support_email: string
+  support_url: string
+  footer_text: string
+  login_tagline: string
+  updated_at: string
+}
+
+export interface PlatformBrandingUpdate {
+  brand_name?: string
+  brand_tagline?: string
+  logo_url?: string
+  favicon_url?: string
+  primary_color?: string
+  accent_color?: string
+  support_email?: string
+  support_url?: string
+  footer_text?: string
+  login_tagline?: string
+}
+
+export const brandingService = {
+  get: () => api.get<PlatformBranding>('/platform/branding'),
+  update: (data: PlatformBrandingUpdate) => api.put<PlatformBranding>('/platform/branding', data),
+  uploadAsset: (file: File, type: 'logo' | 'favicon') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<{ filename: string; type: string; url: string; size: number }>(
+      `/platform/branding/upload?type=${type}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+  }
+}
+
 // Organizations
 export interface Organization {
   id: string

@@ -1,11 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <!-- The branding store overwrites these on mount based on the active
+         locale — keeping good defaults here so social crawlers and the very
+         first paint always see Arabic-first, Saudi-focused marketing. -->
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Whatomate - WhatsApp Business Platform">
-    <title>Whatomate</title>
+    <meta name="theme-color" content="#7c3aed">
+    <title>OmniHub — واتساب + ذكاء اصطناعي لشركتك</title>
+    <meta name="description" content="OmniHub يحوّل واتساب إلى فريق ذكي للردود والمبيعات. استمر باستخدام واتساب من جوالك، وسيقوم OmniHub بإدارة الردود والحملات وصندوق الوارد المشترك.">
+    <meta name="keywords" content="WhatsApp Business, AI, OmniHub, Saudi, واتساب, ذكاء اصطناعي, حملات, تسويق, السعودية, OmniHub, WhatsApp Coexistence">
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="OmniHub">
+    <meta property="og:title" content="OmniHub — واتساب + ذكاء اصطناعي لشركتك">
+    <meta property="og:description" content="OmniHub يحوّل واتساب إلى فريق ذكي للردود والمبيعات. 5 أشهر بـ100 ريال فقط — لأول 20 شركة.">
+    <meta property="og:url" content="https://omnihub.mavacore.com/">
+    <meta property="og:image" content="https://omnihub.mavacore.com/og-cover.png">
+    <meta property="og:locale" content="ar_SA">
+    <meta property="og:locale:alternate" content="en_US">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="OmniHub — WhatsApp + AI for your business">
+    <meta name="twitter:description" content="OmniHub turns your WhatsApp into a smart, AI-powered sales and support team. Keep using WhatsApp from your phone while OmniHub handles replies, campaigns, and your shared inbox.">
+
+    <!-- i18n / hreflang — landing is bilingual; the in-app locale switcher
+         updates the visible content + <html dir/lang> without changing URL. -->
+    <link rel="alternate" hreflang="ar" href="https://omnihub.mavacore.com/?lang=ar">
+    <link rel="alternate" hreflang="en" href="https://omnihub.mavacore.com/?lang=en">
+    <link rel="alternate" hreflang="x-default" href="https://omnihub.mavacore.com/">
+
+    <script>
+      // Locale bootstrap — pick the right direction before Vue hydrates so
+      // AR visitors never see an LTR flash. This runs synchronously in <head>
+      // and is idempotent (the i18n module performs the same work on init).
+      // The product is Saudi-first for launch, so first-time visitors with no
+      // saved preference get Arabic/RTL. Returning/explicit users always win
+      // because we read localStorage first and never overwrite an existing
+      // value.
+      (function() {
+        try {
+          var RTL = ['ar', 'he', 'fa', 'ur'];
+          var saved;
+          try { saved = localStorage.getItem('locale'); } catch (_) {}
+          var nav = (navigator.language || 'en').toLowerCase().split('-')[0];
+          var lang;
+          if (saved && (RTL.concat(['en'])).indexOf(saved) !== -1) {
+            lang = saved;
+          } else if (RTL.indexOf(nav) !== -1) {
+            lang = nav;
+          } else {
+            // Saudi-first default for the launch landing
+            lang = 'ar';
+          }
+          // Persist so the i18n module's getDefaultLocale() picks the same
+          // value on first boot — otherwise it falls back to EN and flips
+          // <html dir> back to LTR after our bootstrap set it to RTL.
+          try { localStorage.setItem('locale', lang); } catch (_) {}
+          var dir = RTL.indexOf(lang) !== -1 ? 'rtl' : 'ltr';
+          document.documentElement.lang = lang;
+          document.documentElement.dir = dir;
+        } catch (e) {
+          /* localStorage may be blocked — fall back to AR/RTL defaults. */
+          document.documentElement.lang = 'ar';
+          document.documentElement.dir = 'rtl';
+        }
+      })();
+    </script>
+
     <script>
       (function() {
         var mode = localStorage.getItem('color-mode');

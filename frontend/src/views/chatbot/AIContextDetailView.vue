@@ -149,7 +149,7 @@ async function save() {
       const created = (response.data as any).data?.context || (response.data as any).data || response.data
       hasChanges.value = false
       toast.success(t('common.createdSuccess', { resource: t('resources.AIContext', 'AI Context') }))
-      router.replace(`/chatbot/ai/${created.id}`)
+      router.replace(`/app/chatbot/ai/${created.id}`)
     } else {
       await chatbotService.updateAIContext(contextId.value, payload)
       await loadContext()
@@ -187,7 +187,7 @@ onMounted(async () => {
     :title="isNew ? $t('aiContexts.newContext', 'New AI Context') : (contextData?.name || '')"
     :icon="Sparkles"
     icon-gradient="bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/20"
-    back-link="/chatbot/ai"
+    back-link="/app/chatbot/ai"
     :breadcrumbs="breadcrumbs"
     :is-loading="isLoading"
     :is-not-found="isNotFound"

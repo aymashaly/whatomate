@@ -71,8 +71,8 @@ watch(selectedCategory, () => {
   resetAndFetch()
 })
 
-function openCreate() { router.push('/settings/canned-responses/new') }
-function openEdit(response: CannedResponse) { router.push(`/settings/canned-responses/${response.id}`) }
+function openCreate() { router.push('/app/settings/canned-responses/new') }
+function openEdit(response: CannedResponse) { router.push(`/app/settings/canned-responses/${response.id}`) }
 
 onMounted(() => fetchItems())
 
@@ -98,8 +98,8 @@ function getCategoryLabel(category: string): string { return getLabelFromValue(C
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
-    <PageHeader :title="$t('cannedResponses.title')" :icon="MessageSquareText" icon-gradient="bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-500/20" back-link="/settings" :breadcrumbs="breadcrumbs">
+  <div class="flex flex-col h-full">
+    <PageHeader :title="$t('cannedResponses.title')" :icon="MessageSquareText" icon-gradient="bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-500/20" back-link="/app/settings" :breadcrumbs="breadcrumbs">
       <template #actions>
         <Button variant="outline" size="sm" @click="openCreate"><Plus class="h-4 w-4 mr-2" />{{ $t('cannedResponses.addResponse') }}</Button>
       </template>
@@ -117,94 +117,98 @@ function getCategoryLabel(category: string): string { return getLabelFromValue(C
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div>
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle>{{ $t('cannedResponses.yourResponses') }}</CardTitle>
-                  <CardDescription>{{ $t('cannedResponses.yourResponsesDesc') }}</CardDescription>
-                </div>
-                <div class="flex items-center gap-2">
-                  <Select v-model="selectedCategory">
-                    <SelectTrigger class="w-[150px]"><SelectValue :placeholder="$t('common.all')" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{{ $t('cannedResponses.allCategories') }}</SelectItem>
-                      <SelectItem v-for="cat in CANNED_RESPONSE_CATEGORIES" :key="cat.value" :value="cat.value">{{ cat.label }}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <SearchInput v-model="searchQuery" :placeholder="$t('cannedResponses.searchResponses') + '...'" class="w-64" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                :items="cannedResponses"
-                :columns="columns"
-                :is-loading="isLoading"
-                :empty-icon="MessageSquareText"
-                :empty-title="$t('cannedResponses.noResponsesFound')"
-                :empty-description="$t('cannedResponses.noResponsesFoundDesc')"
-                v-model:sort-key="sortKey"
-                v-model:sort-direction="sortDirection"
-                server-pagination
-                :current-page="currentPage"
-                :total-items="totalItems"
-                :page-size="pageSize"
-                item-name="responses"
-                @page-change="handlePageChange"
-              >
-                <template #cell-name="{ item: response }">
-                  <RouterLink :to="`/settings/canned-responses/${response.id}`" class="text-inherit no-underline hover:opacity-80">
-                    <div>
-                      <span class="font-medium">{{ response.name }}</span>
-                      <p v-if="response.shortcut" class="text-xs font-mono text-muted-foreground">/{{ response.shortcut }}</p>
-                    </div>
-                  </RouterLink>
-                </template>
-                <template #cell-category="{ item: response }">
-                  <Badge variant="outline" class="text-xs">{{ getCategoryLabel(response.category) }}</Badge>
-                </template>
-                <template #cell-content="{ item: response }">
-                  <p class="text-sm text-muted-foreground max-w-[300px] truncate">{{ response.content }}</p>
-                </template>
-                <template #cell-usage_count="{ item: response }">
-                  <span class="text-muted-foreground">{{ response.usage_count }}</span>
-                </template>
-                <template #cell-status="{ item: response }">
-                  <Badge v-if="response.is_active" class="bg-emerald-500/20 text-emerald-400 border-transparent text-xs">{{ $t('common.active') }}</Badge>
-                  <Badge v-else variant="secondary" class="text-xs">{{ $t('common.inactive') }}</Badge>
-                </template>
-                <template #cell-actions="{ item: response }">
-                  <div class="flex items-center justify-end gap-1">
-                    <IconButton
-                      :icon="Copy"
-                      :label="$t('cannedResponses.copyContent')"
-                      class="h-8 w-8"
-                      @click="copyToClipboard(response.content)"
-                    />
-                    <IconButton
-                      :icon="Pencil"
-                      :label="$t('cannedResponses.editResponse')"
-                      class="h-8 w-8"
-                      @click="openEdit(response)"
-                    />
-                    <IconButton
-                      :icon="Trash2"
-                      :label="$t('cannedResponses.deleteResponse')"
-                      variant="ghost"
-                      class="h-8 w-8 text-destructive"
-                      @click="openDeleteDialog(response)"
-                    />
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>{{ $t('cannedResponses.yourResponses') }}</CardTitle>
+                    <CardDescription>{{ $t('cannedResponses.yourResponsesDesc') }}</CardDescription>
                   </div>
-                </template>
-                <template #empty-action>
-                  <Button variant="outline" size="sm" @click="openCreate">
-                    <Plus class="h-4 w-4 mr-2" />{{ $t('cannedResponses.addResponse') }}
-                  </Button>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                  <div class="flex items-center gap-2">
+                    <Select v-model="selectedCategory">
+                      <SelectTrigger class="w-[150px]"><SelectValue :placeholder="$t('common.all')" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{{ $t('cannedResponses.allCategories') }}</SelectItem>
+                        <SelectItem v-for="cat in CANNED_RESPONSE_CATEGORIES" :key="cat.value" :value="cat.value">{{ cat.label }}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <SearchInput v-model="searchQuery" :placeholder="$t('cannedResponses.searchResponses') + '...'" class="w-64" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataTable
+                  :items="cannedResponses"
+                  :columns="columns"
+                  :is-loading="isLoading"
+                  :empty-icon="MessageSquareText"
+                  :empty-title="$t('cannedResponses.noResponsesFound')"
+                  :empty-description="$t('cannedResponses.noResponsesFoundDesc')"
+                  v-model:sort-key="sortKey"
+                  v-model:sort-direction="sortDirection"
+                  server-pagination
+                  :current-page="currentPage"
+                  :total-items="totalItems"
+                  :page-size="pageSize"
+                  item-name="responses"
+                  @page-change="handlePageChange"
+                >
+                  <template #cell-name="{ item: response }">
+                    <RouterLink :to="`/app/settings/canned-responses/${response.id}`" class="text-inherit no-underline hover:opacity-80">
+                      <div>
+                        <span class="font-medium">{{ response.name }}</span>
+                        <p v-if="response.shortcut" class="text-xs font-mono text-muted-foreground">/{{ response.shortcut }}</p>
+                      </div>
+                    </RouterLink>
+                  </template>
+                  <template #cell-category="{ item: response }">
+                    <Badge variant="outline" class="text-xs">{{ getCategoryLabel(response.category) }}</Badge>
+                  </template>
+                  <template #cell-content="{ item: response }">
+                    <p class="text-sm text-muted-foreground max-w-[300px] truncate">{{ response.content }}</p>
+                  </template>
+                  <template #cell-usage_count="{ item: response }">
+                    <span class="text-muted-foreground">{{ response.usage_count }}</span>
+                  </template>
+                  <template #cell-status="{ item: response }">
+                    <Badge v-if="response.is_active" class="bg-emerald-500/20 text-emerald-400 border-transparent text-xs">{{ $t('common.active') }}</Badge>
+                    <Badge v-else variant="secondary" class="text-xs">{{ $t('common.inactive') }}</Badge>
+                  </template>
+                  <template #cell-actions="{ item: response }">
+                    <div class="flex items-center justify-end gap-1">
+                      <IconButton
+                        :icon="Copy"
+                        :label="$t('cannedResponses.copyContent')"
+                        class="h-8 w-8"
+                        @click="copyToClipboard(response.content)"
+                      />
+                      <IconButton
+                        :icon="Pencil"
+                        :label="$t('cannedResponses.editResponse')"
+                        class="h-8 w-8"
+                        @click="openEdit(response)"
+                      />
+                      <IconButton
+                        :icon="Trash2"
+                        :label="$t('cannedResponses.deleteResponse')"
+                        variant="ghost"
+                        class="h-8 w-8 text-destructive"
+                        @click="openDeleteDialog(response)"
+                      />
+                    </div>
+                  </template>
+                  <template #empty-action>
+                    <Button variant="outline" size="sm" @click="openCreate">
+                      <Plus class="h-4 w-4 mr-2" />{{ $t('cannedResponses.addResponse') }}
+                    </Button>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

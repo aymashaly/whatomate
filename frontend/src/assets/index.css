@@ -3,71 +3,128 @@
 @tailwind utilities;
 
 @layer base {
-  /* Dark-first: Linear/Vercel inspired dark mode */
+  /* =====================================================================
+     "Soft Tiles" design system — neumorphic surfaces, restrained glass,
+     light-by-default. Built for an Apple-clean feel.
+     ===================================================================== */
+
   :root {
-    /* True black background like Linear/Vercel */
-    --background: 0 0% 2.5%;
-    --foreground: 0 0% 98%;
+    /* Warm off-white canvas — softer than pure white, less clinical */
+    --background: 220 25% 96%;
+    --foreground: 222 32% 10%;
 
-    /* Glass morphism cards - slightly transparent */
-    --card: 0 0% 5%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
+    /* Platform branding overrides — set on documentElement.style by the
+       branding store once the singleton row loads. If unset, we fall back
+       to the emerald/cyan defaults below via the --primary / --accent
+       declarations a few lines down. */
+    --brand-primary-hsl: 160 70% 36%;
+    --brand-accent-hsl: 195 85% 42%;
 
-    /* Emerald green primary (WhatsApp style) */
-    --primary: 160 84% 39%;
+    /* Surfaces that sit ON the canvas (cards, popovers, inputs) —
+       very close to canvas so neumorphic shadows do the work, not
+       color contrast. */
+    --card: 220 22% 98%;
+    --card-foreground: 222 32% 10%;
+    --popover: 220 22% 99%;
+    --popover-foreground: 222 32% 10%;
+
+    /* Single emerald accent — used sparingly */
+    --primary: 160 70% 36%;
     --primary-foreground: 0 0% 100%;
 
-    /* Subtle secondary/muted for glass effect */
-    --secondary: 0 0% 8%;
-    --secondary-foreground: 0 0% 90%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 55%;
-    --accent: 0 0% 10%;
-    --accent-foreground: 0 0% 98%;
+    --secondary: 220 18% 92%;
+    --secondary-foreground: 222 28% 14%;
+    --muted: 220 18% 94%;
+    --muted-foreground: 222 12% 42%;
+    --accent: 195 85% 42%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Subtle borders - key for Linear look */
-    --border: 0 0% 12%;
-    --input: 0 0% 12%;
-    --ring: 160 84% 39%;
-    --radius: 0.75rem;
+    --border: 220 14% 86%;
+    --input: 220 14% 86%;
+    --ring: 160 70% 36%;
+    --radius: 1rem;
 
-    /* Glass effect utilities */
-    --glass-bg: rgba(255, 255, 255, 0.03);
-    --glass-bg-hover: rgba(255, 255, 255, 0.06);
-    --glass-border: rgba(255, 255, 255, 0.06);
+    /* Neumorphic — paired light/dark shadows so the same color as
+       the canvas (or very close) appears extruded. Use ONE light
+       and ONE dark shadow per surface. */
+    --neu-light: hsla(0, 0%, 100%, 0.85);                 /* top-left highlight */
+    --neu-dark: hsla(222, 32%, 12%, 0.10);                /* bottom-right shadow */
+    --neu-light-soft: hsla(0, 0%, 100%, 0.65);
+    --neu-dark-soft: hsla(222, 32%, 12%, 0.06);
+    --neu-inset-dark: hsla(222, 32%, 12%, 0.16);          /* pressed surface */
+    --neu-inset-light: hsla(0, 0%, 100%, 0.55);
+
+    /* Minimum glass — only used for the persistent floating chrome
+       (sidebar, sticky header). No rim-drift, no constant animation. */
+    --glass-bg: hsla(220, 25%, 100%, 0.78);
+    --glass-bg-hover: hsla(220, 25%, 100%, 0.86);
+    --glass-border: hsla(222, 22%, 14%, 0.10);
+    --glass-border-bright: hsla(222, 22%, 14%, 0.18);
+    --glass-highlight: hsla(0, 0%, 100%, 0.95);
+    --glass-blur: 14px;
+    --glass-blur-strong: 18px;
+
+    /* Typography rhythm — Apple-clean */
+    --leading-tight: 1.1;
+    --leading-snug: 1.3;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.65;
+    --tracking-display: -0.025em;
+    --tracking-tight: -0.012em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.04em;
+    --tracking-label: 0.08em;
+
+    /* Motion — only on hover/press, never ambient */
+    --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --duration-fast: 120ms;
+    --duration-base: 180ms;
+    --duration-slow: 280ms;
   }
 
-  /* Light mode - clean white like Vercel */
-  .light {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    --primary: 160 84% 39%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 160 84% 39%;
+  /* .light alias — same as :root. Kept for backward compatibility
+     with the JS that adds the .light class on `<html>`. */
+  .light { /* tokens identical to :root */ }
 
-    /* Glass effect utilities for light mode */
-    --glass-bg: rgba(0, 0, 0, 0.02);
-    --glass-bg-hover: rgba(0, 0, 0, 0.04);
-    --glass-border: rgba(0, 0, 0, 0.06);
+  /* Dark mode — the previous look, preserved as an opt-in */
+  .dark {
+    --background: 222 22% 5%;
+    --foreground: 210 30% 96%;
+    --card: 222 22% 8%;
+    --card-foreground: 210 30% 96%;
+    --popover: 222 22% 9%;
+    --popover-foreground: 210 30% 96%;
+    --primary: 160 84% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 22% 11%;
+    --secondary-foreground: 210 25% 92%;
+    --muted: 222 22% 13%;
+    --muted-foreground: 220 12% 60%;
+    --accent: 195 90% 50%;
+    --accent-foreground: 222 22% 6%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 18% 14%;
+    --input: 222 18% 14%;
+    --ring: 160 84% 45%;
+
+    /* Dark neomorphic shadows — inverted: dark bg + light-from-above */
+    --neu-light: hsla(220, 30%, 90%, 0.08);
+    --neu-dark: hsla(0, 0%, 0%, 0.55);
+    --neu-light-soft: hsla(220, 30%, 90%, 0.04);
+    --neu-dark-soft: hsla(0, 0%, 0%, 0.35);
+    --neu-inset-dark: hsla(0, 0%, 0%, 0.6);
+    --neu-inset-light: hsla(220, 30%, 90%, 0.05);
+
+    --glass-bg: hsla(222, 22%, 10%, 0.62);
+    --glass-bg-hover: hsla(222, 22%, 12%, 0.72);
+    --glass-border: hsla(210, 30%, 96%, 0.08);
+    --glass-border-bright: hsla(210, 30%, 96%, 0.14);
+    --glass-highlight: hsla(0, 0%, 100%, 0.06);
   }
 
   /* Legacy dark class support */
@@ -265,71 +322,64 @@
   @apply bg-gray-100;
 }
 
-/* Chat background - dark-first */
+/* Chat surface — light by default (Warm WhatsApp-style).
+   Body text uses foreground token so it adapts to dark-mode opt-in. */
 .chat-background {
-  background-color: #0f0f10;
+  background-color: hsl(var(--background));
 }
 
-.light .chat-background {
-  background-color: #f5f5f5;
-}
-
-/* Modern chat bubble styles */
+/* Modern chat bubble base */
 .chat-bubble {
   @apply relative px-4 py-2.5 text-sm;
   max-width: 65%;
   border-radius: 1rem;
+  line-height: 1.4;
 }
 
-/* Incoming bubble - glass effect */
+/* Incoming bubble — soft off-white tile, dark text */
 .chat-bubble-incoming {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #e9edef;
+  background-color: #FFFFFF;
+  color: hsl(var(--foreground));
   border-bottom-left-radius: 0.375rem;
+  box-shadow:
+    0 1px 2px hsla(222, 22%, 14%, 0.05),
+    0 1px 0 hsla(0, 0%, 100%, 0.4) inset;
 }
 
-/* Outgoing bubble - WhatsApp dark mode teal green */
+/* Outgoing bubble — soft emerald tint, dark text */
 .chat-bubble-outgoing {
-  background-color: #38674a;
-  color: #e9edef;
+  background-color: #E2F5EA;
+  color: hsl(var(--foreground));
   border-bottom-right-radius: 0.375rem;
+  box-shadow:
+    0 1px 2px hsla(222, 22%, 14%, 0.05),
+    0 1px 0 hsla(0, 0%, 100%, 0.5) inset;
 }
 
-/* Light mode bubbles */
-.light .chat-bubble-incoming {
-  background-color: #ffffff;
-  color: #111b21;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-.light .chat-bubble-outgoing {
-  background-color: #d9fdd3;
-  color: #111b21;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-/* Legacy dark class support */
+/* Dark opt-in overrides */
 .dark .chat-bubble-incoming {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #e9edef;
+  background-color: hsla(210, 30%, 96%, 0.08);
+  color: hsl(210, 30%, 96%);
+  box-shadow: none;
 }
-
 .dark .chat-bubble-outgoing {
-  background-color: #38674a;
-  color: #e9edef;
+  background-color: hsl(160, 84%, 32%);
+  color: hsl(0, 0%, 100%);
+  box-shadow: none;
+}
+.dark .chat-background {
+  background-color: hsl(222, 22%, 7%);
 }
 
 .chat-bubble-outgoing .text-destructive {
-  color: #fd7878fc;
+  color: hsl(0, 72% 50%);
   font-size: 0.80rem;
 }
-
-.light .chat-bubble-outgoing .text-destructive {
-  color: #dc2626;
-  font-size: 0.80rem;
+.dark .chat-bubble-outgoing .text-destructive {
+  color: hsl(0, 72% 65%);
 }
 
-/* Time and status */
+/* Time and status — softer dark text on light bubbles */
 .chat-bubble-time {
   @apply text-[10px] mt-1 flex items-center gap-1.5 float-right;
   margin-left: 8px;
@@ -339,42 +389,33 @@
 }
 
 .chat-bubble-time span {
-  color: rgba(255, 255, 255, 0.4);
+  color: hsl(var(--muted-foreground) / 0.8);
 }
 
 .chat-bubble-incoming .chat-bubble-time span {
-  color: rgba(255, 255, 255, 0.4);
+  color: hsl(var(--muted-foreground) / 0.8);
 }
 
 .chat-bubble-outgoing .chat-bubble-time span {
-  color: rgba(255, 255, 255, 0.6);
+  color: hsl(160 60% 30% / 0.85);
 }
 
-.light .chat-bubble-time span {
-  color: rgba(17, 27, 33, 0.45);
-}
-
-.light .chat-bubble-outgoing .chat-bubble-time span {
-  color: rgba(17, 27, 33, 0.6);
+.dark .chat-bubble-time span {
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /* Status icons */
 .chat-bubble-outgoing .chat-bubble-time .status-icon {
-  color: rgba(255, 255, 255, 0.6);
+  color: hsl(160 60% 30% / 0.85);
   width: 16px;
   height: 16px;
+}
+.dark .chat-bubble-outgoing .chat-bubble-time .status-icon {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Read status - bright cyan blue like WhatsApp */
 .chat-bubble-outgoing .chat-bubble-time .status-icon.text-blue-400 {
-  color: #53bdeb !important;
-}
-
-.light .chat-bubble-outgoing .chat-bubble-time .status-icon {
-  color: rgba(17, 27, 33, 0.4);
-}
-
-.light .chat-bubble-outgoing .chat-bubble-time .status-icon.text-blue-400 {
   color: #53bdeb !important;
 }
 
@@ -395,19 +436,6 @@
   color: #4ade80;
 }
 
-.light .reply-preview {
-  background: rgba(0, 0, 0, 0.04);
-  border-left-color: #16a34a;
-}
-
-.light .reply-preview p {
-  color: rgba(17, 27, 33, 0.7);
-}
-
-.light .reply-preview .font-medium {
-  color: #16a34a;
-}
-
 .chat-bubble-outgoing .reply-preview {
   background: rgba(0, 0, 0, 0.2);
   border-left-color: rgba(255, 255, 255, 0.5);
@@ -419,19 +447,6 @@
 
 .chat-bubble-outgoing .reply-preview .font-medium {
   color: rgba(255, 255, 255, 0.9);
-}
-
-.light .chat-bubble-outgoing .reply-preview {
-  background: rgba(0, 0, 0, 0.08);
-  border-left-color: #166534;
-}
-
-.light .chat-bubble-outgoing .reply-preview p {
-  color: rgba(17, 27, 33, 0.7);
-}
-
-.light .chat-bubble-outgoing .reply-preview .font-medium {
-  color: #166534;
 }
 
 /* Button reply style - shows when user clicks a button */
@@ -450,18 +465,6 @@
 
 .chat-bubble-outgoing .button-reply-bubble {
   color: rgba(255, 255, 255, 0.95);
-}
-
-.light .button-reply-bubble {
-  color: #16a34a;
-}
-
-.light .button-reply-bubble .chat-bubble-time {
-  color: rgba(17, 27, 33, 0.45);
-}
-
-.light .chat-bubble-outgoing .button-reply-bubble {
-  color: #166534;
 }
 
 /* Interactive buttons */
@@ -491,24 +494,29 @@
 }
 
 .chat-bubble-outgoing .interactive-buttons > div:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.30);
 }
 
-.light .interactive-buttons {
-  border-color: rgba(0, 0, 0, 0.1);
+/* Dark opt-in for interactive buttons (legacy dark colors) */
+.dark .interactive-buttons {
+  border-color: rgba(255, 255, 255, 0.15);
 }
-
-.light .interactive-buttons > div {
-  border-color: rgba(0, 0, 0, 0.1);
-  color: #16a34a; /* emerald-600 for light mode */
+.dark .interactive-buttons > div {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #4ade80;
 }
-
-.light .interactive-buttons > div:hover {
-  background: rgba(0, 0, 0, 0.05);
+.dark .interactive-buttons > div:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
-
-.light .chat-bubble-outgoing .interactive-buttons > div {
-  color: #166534; /* darker green for light mode outgoing */
+.dark .chat-bubble-outgoing .interactive-buttons {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.dark .chat-bubble-outgoing .interactive-buttons > div {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+}
+.dark .chat-bubble-outgoing .interactive-buttons > div:hover {
+  background: rgba(0, 0, 0, 0.15);
 }
 
 /* Message highlight animation for scroll-to */
@@ -734,4 +742,392 @@
 
 .avatar-status-pulse::after {
   animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* =====================================================================
+   "Fluid Glass" design system utilities — used by the redesigned chrome,
+   login, and dashboard. The chat view (.chat-background / .chat-bubble-*)
+   is intentionally left intact.
+   ===================================================================== */
+
+/* =====================================================================
+   "Soft Tiles" surface system — neumorphic shadows, restrained glass.
+   Use this for cards / buttons / inputs / list rows / floating chrome.
+   Glass is reserved for persistent floating chrome only.
+   ===================================================================== */
+
+/* Neumorphic card — same color as canvas with paired shadows creating
+   the illusion of an extruded tile. */
+.neu-card {
+  background: hsl(var(--card));
+  border-radius: 1rem;
+  box-shadow:
+    -8px -8px 16px var(--neu-light),
+     8px  8px 24px var(--neu-dark);
+  transition:
+    box-shadow var(--duration-base) var(--ease-out-quart),
+    transform var(--duration-base) var(--ease-spring);
+}
+.neu-card.interactive {
+  cursor: pointer;
+}
+.neu-card.interactive:hover {
+  box-shadow:
+    -10px -10px 22px var(--neu-light),
+     10px  10px 30px var(--neu-dark);
+  transform: translateY(-1px);
+}
+.neu-card.interactive:active {
+  transform: translateY(0);
+  box-shadow:
+    inset -4px -4px 8px var(--neu-inset-light),
+    inset  4px  4px 10px var(--neu-inset-dark);
+}
+
+/* Neumorphic row inside a list — softer than .neu-card so dense lists feel airy */
+.neu-row {
+  background: hsl(var(--card));
+  border-radius: 0.875rem;
+  box-shadow:
+    -3px -3px 6px var(--neu-light-soft),
+     3px  3px 8px var(--neu-dark-soft);
+  transition:
+    box-shadow var(--duration-base) var(--ease-out-quart),
+    transform var(--duration-fast) var(--ease-out-quart);
+}
+.neu-row:hover {
+  box-shadow:
+    -4px -4px 9px var(--neu-light),
+     4px  4px 12px var(--neu-dark);
+}
+
+/* Neumorphic input — pressed-in feel */
+.neu-input {
+  background: hsl(var(--background));
+  border-radius: 0.875rem;
+  border: 1px solid hsla(0, 0%, 0%, 0.0);
+  box-shadow:
+    inset -2px -2px 5px var(--neu-light),
+    inset  2px  2px 6px var(--neu-dark);
+  transition:
+    box-shadow var(--duration-base) var(--ease-out-quart),
+    border-color var(--duration-base) var(--ease-out-quart);
+}
+.neu-input:focus-within {
+  border-color: hsl(var(--ring) / 0.3);
+  box-shadow:
+    inset -2px -2px 5px var(--neu-light),
+    inset  2px  2px 6px var(--neu-dark),
+    0 0 0 3px hsl(var(--ring) / 0.18);
+}
+
+/* Neumorphic raised button base */
+.neu-button {
+  background: hsl(var(--card));
+  border-radius: 0.75rem;
+  box-shadow:
+    -3px -3px 6px var(--neu-light),
+     3px  3px 8px var(--neu-dark);
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out-quart),
+    transform var(--duration-fast) var(--ease-out-quart);
+}
+.neu-button:hover {
+  box-shadow:
+    -4px -4px 9px var(--neu-light),
+     4px  4px 12px var(--neu-dark);
+  transform: translateY(-1px);
+}
+.neu-button:active {
+  transform: translateY(0);
+  box-shadow:
+    inset -2px -2px 4px var(--neu-inset-light),
+    inset  2px  2px 6px var(--neu-inset-dark);
+}
+
+/* Insets — pressed-in "well" look (used inside selected nav, modal frames) */
+.neu-inset {
+  background: hsl(var(--background));
+  border-radius: 1rem;
+  box-shadow:
+    inset -3px -3px 6px var(--neu-inset-light),
+    inset  3px  3px 8px var(--neu-inset-dark);
+}
+
+/* Floating chrome — the ONLY place glass is used. No constant
+   animation, no rim drift. Static frosted pane. */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 6px 18px -8px hsla(0, 0%, 0%, 0.18);
+}
+.glass-strong {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(200%);
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(200%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    0 8px 22px -6px hsla(0, 0%, 0%, 0.22);
+}
+
+/* Press feedback — single, fast, no animation chain */
+.spring-pressable {
+  transition: transform var(--duration-fast) var(--ease-out-quart);
+}
+.spring-pressable:active {
+  transform: scale(0.98);
+}
+
+/* Typography — same as before, kept for AppLayout/PageHeader/Dashboard */
+.display {
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-tight);
+}
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+.metric {
+  font-feature-settings: "tnum" 1, "ss01" 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+  font-weight: 600;
+}
+
+/* Dark mode — keep light shadows visible against dark bg */
+.dark .neu-card {
+  box-shadow:
+    -8px -8px 16px var(--neu-light),
+     8px  8px 24px var(--neu-dark);
+}
+.dark .neu-row {
+  box-shadow:
+    -3px -3px 6px var(--neu-light),
+     3px  3px 8px var(--neu-dark);
+}
+.dark .neu-input {
+  box-shadow:
+    inset -2px -2px 5px var(--neu-light),
+    inset  2px  2px 6px var(--neu-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neu-card, .neu-card.interactive, .neu-row, .neu-button, .spring-pressable {
+    transition: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Platform branding — primary/accent reactive surfaces.
+   The branding store sets --brand-primary-hsl / --brand-accent-hsl on the
+   document root. These rules consume the variables and apply brand color
+   to nav active pills, accents, and small touches that don't already have
+   their own explicit color. Tailwind's `bg-emerald-500/12` literals are
+   static; we use these rules so changing brand color in the admin panel
+   actually re-skins the sidebar nav.
+   ------------------------------------------------------------------------- */
+.nav-pill[data-active="true"] {
+  background: hsl(var(--brand-primary-hsl) / 0.12);
+  color: hsl(var(--brand-primary-hsl));
+}
+.nav-pill[data-active="true"] > span:first-child {
+  background: hsl(var(--brand-primary-hsl) / 0.15);
+  color: hsl(var(--brand-primary-hsl));
+}
+/* The submenu rail's active child also follows brand color */
+nav .ml-11 > a.router-link-active,
+nav .ml-11 > a[aria-current="page"] {
+  background: hsl(var(--brand-primary-hsl) / 0.10);
+  color: hsl(var(--brand-primary-hsl));
+}
+
+/* -------------------------------------------------------------------------
+   Landing page — glassmorphism, ambient glows, premium Saudi SaaS feel.
+   These utilities are landing-specific (used by LandingView.vue). The
+   Soft Tiles neumorphic system stays in place for the app shell — the
+   landing has its own visual identity so the marketing surface can flex
+   glass + ambient light without disturbing the operator UI.
+
+   Brand gradient uses the same --brand-primary-hsl / --brand-accent-hsl
+   pair as the rest of the app, but the marketing flow leans on ambient
+   glows and translucent layers instead of inset shadows.
+   ------------------------------------------------------------------------- */
+
+/* Brand-solid surface — single primary color (violet) so the marketing
+   surface reads as flat + clean instead of purple→blue→cyan gradient.
+   Used by buttons, icon chips, accent pills on the landing. */
+.brand-fill {
+  background-color: hsl(262 83% 58%);
+  color: #ffffff;
+}
+.brand-fill-text {
+  color: hsl(262 83% 58%);
+}
+
+/* Brand-mark fallback tiles (used by BrandMark.vue when no uploaded logo
+   is available). `.brand-mark-glass` is the default — soft white glass
+   so the O/H icon sits in a frosted chip that blends with the rest of
+   the page on light backgrounds. `.brand-mark-tinted` is the saturated
+   variant for use directly on top of colored gradients. */
+.brand-mark-tile {
+  border-radius: 0.625rem;
+  position: relative;
+}
+.brand-mark-glass {
+  background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(241,245,249,0.78) 100%);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 4px 14px -6px rgba(76, 29, 149, 0.18);
+}
+.brand-mark-tinted {
+  background-color: hsl(262 83% 58%);
+}
+
+/* Standard glass surface (cards, panels). Slight white tint over a
+   translucent background so content stays legible on white pages. */
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.85) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.04) inset,
+    0 8px 24px -8px rgba(76, 29, 149, 0.12),
+    0 24px 60px -16px rgba(34, 211, 238, 0.18);
+  border-radius: 1.25rem;
+}
+
+/* Heavier glass for primary CTA / hero — more opacity, stronger highlight. */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(15, 23, 42, 0.04) inset,
+    0 30px 80px -20px rgba(124, 58, 237, 0.30),
+    0 12px 40px -12px rgba(34, 211, 238, 0.25);
+  border-radius: 1.5rem;
+}
+
+/* Frosted glass surface for secondary UI on hero (smaller, lower blur). */
+.glass-tile {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 1rem;
+}
+
+/* Ambient glow used behind hero text / pricing card. Fixed pixel size so
+   it doesn't push the layout around — absolutely positioned inside the
+   parent (parents should set position:relative and overflow:visible). */
+.glow-ambient {
+  position: absolute;
+  pointer-events: none;
+  filter: blur(80px);
+  opacity: 0.55;
+  border-radius: 9999px;
+}
+
+/* (legacy gradient utilities removed — landing is now flat-brand-only) */
+
+/* Float animation used by the brand mark in the navbar/hero. Slow,
+   subtle — never makes the user seasick. */
+@keyframes brand-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-4px) rotate(1deg); }
+}
+.animate-brand-float {
+  animation: brand-float 6s ease-in-out infinite;
+}
+
+/* Glass refraction shimmer — subtle background-position shift. Disabled
+   automatically by the prefers-reduced-motion media query at the bottom of
+   this file. */
+@keyframes glass-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-shimmer {
+  background-size: 200% 200%;
+  animation: glass-shimmer 14s ease-in-out infinite;
+}
+
+/* Soft fade-up — small entrance animation for landing sections. */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.6s ease-out both; }
+.animate-fade-up-2 { animation: fade-up 0.6s 0.1s ease-out both; }
+.animate-fade-up-3 { animation: fade-up 0.6s 0.2s ease-out both; }
+
+/* Underline animation for nav links. Replaces the default hover
+   underline with a subtle expanding highlight that doesn't fight with
+   Tailwind's hover utilities. */
+.nav-link-anim {
+  position: relative;
+}
+.nav-link-anim::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 50%;
+  bottom: -2px;
+  height: 2px;
+  width: 0;
+  background-image: linear-gradient(90deg, hsl(271 81% 56%), hsl(189 94% 43%));
+  transition: width 200ms var(--ease-out-quart), inset-inline-start 200ms var(--ease-out-quart);
+}
+.nav-link-anim:hover::after {
+  width: 100%;
+  inset-inline-start: 0;
+}
+
+/* Mobile-only sticky bottom CTA — hidden on md+. The landing uses this to
+   keep "احجز عرضك" one tap away regardless of which section the user is
+   reading. */
+.mobile-sticky-cta {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.92) 40%, rgba(255,255,255,0.98) 100%);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+@media (min-width: 768px) {
+  .mobile-sticky-cta { display: none; }
+}
+
+/* RTL adjustments — when <html dir="rtl">, swap decorative margins that
+   would otherwise point the wrong way. Most layout already uses Tailwind
+   logical properties (ms-/me-/start/end), this catches the few outliers. */
+[dir="rtl"] .flip-arrow-end { transform: scaleX(-1); }
+
+/* Reduce motion preference overrides. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-brand-float,
+  .animate-shimmer,
+  .animate-fade-up,
+  .animate-fade-up-2,
+  .animate-fade-up-3 {
+    animation: none !important;
+  }
 }

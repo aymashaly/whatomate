@@ -495,75 +495,86 @@ void _displayStats.value // Suppress unused warning
         <!-- Charts Row -->
         <div v-if="!error" class="grid gap-4 md:grid-cols-2">
           <!-- Trend Chart -->
-          <Card>
-            <CardHeader>
-              <CardTitle>{{ $t('agentAnalytics.transferTrends') }}</CardTitle>
-              <CardDescription>{{ $t('agentAnalytics.transfersOverTime') }}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div class="h-64">
-                <template v-if="isLoading">
-                  <Skeleton class="h-full w-full" />
-                </template>
-                <template v-else-if="trendChartData.labels.length > 0">
-                  <Line :data="trendChartData" :options="trendChartOptions" />
-                </template>
-                <template v-else>
-                  <div class="h-full flex items-center justify-center text-muted-foreground">
-                    {{ $t('agentAnalytics.noDataAvailable') }}
-                  </div>
-                </template>
-              </div>
-            </CardContent>
-          </Card>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <CardTitle>{{ $t('agentAnalytics.transferTrends') }}</CardTitle>
+                <CardDescription>{{ $t('agentAnalytics.transfersOverTime') }}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="h-64">
+                  <template v-if="isLoading">
+                    <Skeleton class="h-full w-full" />
+                  </template>
+                  <template v-else-if="trendChartData.labels.length > 0">
+                    <Line :data="trendChartData" :options="trendChartOptions" />
+                  </template>
+                  <template v-else>
+                    <div class="h-full flex items-center justify-center text-muted-foreground">
+                      {{ $t('agentAnalytics.noDataAvailable') }}
+                    </div>
+                  </template>
+                </div>
+              </CardContent>
 
+                      </Card>
+          </div>
           <!-- Source Distribution -->
-          <Card>
-            <CardHeader>
-              <CardTitle>{{ $t('agentAnalytics.conversationSources') }}</CardTitle>
-              <CardDescription>{{ $t('agentAnalytics.howConversationsInitiated') }}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div class="h-64">
-                <template v-if="isLoading">
-                  <Skeleton class="h-full w-full" />
-                </template>
-                <template v-else-if="sourceChartData.labels.length > 0">
-                  <Doughnut :data="sourceChartData" :options="sourceChartOptions" />
-                </template>
-                <template v-else>
-                  <div class="h-full flex items-center justify-center text-muted-foreground">
-                    {{ $t('agentAnalytics.noDataAvailable') }}
-                  </div>
-                </template>
-              </div>
-            </CardContent>
-          </Card>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <CardTitle>{{ $t('agentAnalytics.conversationSources') }}</CardTitle>
+                <CardDescription>{{ $t('agentAnalytics.howConversationsInitiated') }}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="h-64">
+                  <template v-if="isLoading">
+                    <Skeleton class="h-full w-full" />
+                  </template>
+                  <template v-else-if="sourceChartData.labels.length > 0">
+                    <Doughnut :data="sourceChartData" :options="sourceChartOptions" />
+                  </template>
+                  <template v-else>
+                    <div class="h-full flex items-center justify-center text-muted-foreground">
+                      {{ $t('agentAnalytics.noDataAvailable') }}
+                    </div>
+                  </template>
+                </div>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
 
         <!-- Agent Comparison (Admin/Manager only, when viewing all agents) -->
         <template v-if="!error && isAdminOrManager && selectedAgentId === 'all'">
-          <Card>
-            <CardHeader>
-              <CardTitle>{{ $t('agentAnalytics.agentComparison') }}</CardTitle>
-              <CardDescription>{{ $t('agentAnalytics.performanceComparison') }}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div class="h-64">
-                <template v-if="isLoading">
-                  <Skeleton class="h-full w-full" />
-                </template>
-                <template v-else-if="comparisonChartData.labels.length > 0">
-                  <Bar :data="comparisonChartData" :options="comparisonChartOptions" />
-                </template>
-                <template v-else>
-                  <div class="h-full flex items-center justify-center text-muted-foreground">
-                    {{ $t('agentAnalytics.noAgentsFound') }}
-                  </div>
-                </template>
-              </div>
-            </CardContent>
-          </Card>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <CardTitle>{{ $t('agentAnalytics.agentComparison') }}</CardTitle>
+                <CardDescription>{{ $t('agentAnalytics.performanceComparison') }}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="h-64">
+                  <template v-if="isLoading">
+                    <Skeleton class="h-full w-full" />
+                  </template>
+                  <template v-else-if="comparisonChartData.labels.length > 0">
+                    <Bar :data="comparisonChartData" :options="comparisonChartOptions" />
+                  </template>
+                  <template v-else>
+                    <div class="h-full flex items-center justify-center text-muted-foreground">
+                      {{ $t('agentAnalytics.noAgentsFound') }}
+                    </div>
+                  </template>
+                </div>
+              </CardContent>
+
+                      </Card>
+          </div>
         </template>
       </div>
     </ScrollArea>

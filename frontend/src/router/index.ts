@@ -35,12 +35,27 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      // Public landing page. Authenticated users are bounced to /app/dashboard
+      // by the navigation guard below, so this only renders for visitors.
       path: '/',
+      name: 'landing',
+      component: () => import('@/views/landing/LandingView.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
+      // Authenticated app shell. All nested routes inherit AppLayout
+      // (sidebar + header). Moved off `/` so the root stays public for the
+      // landing page.
+      path: '/app',
       component: () => import('@/components/layout/AppLayout.vue'),
       meta: { requiresAuth: true },
       children: [
         {
           path: '',
+          redirect: '/app/dashboard'
+        },
+        {
+          path: 'dashboard',
           name: 'dashboard',
           component: () => import('@/views/dashboard/DashboardView.vue'),
           meta: { permission: 'analytics' }
@@ -300,6 +315,14 @@ const router = createRouter({
           meta: { permission: 'audit_logs' }
         },
         {
+          // Super-admin only — the view itself guards on is_super_admin, but
+          // the route is public-by-permission so the Settings submenu renders.
+          path: 'settings/branding',
+          name: 'platform-branding',
+          component: () => import('@/views/settings/BrandingView.vue'),
+          meta: { permission: 'settings.general' }
+        },
+        {
           path: 'calling',
           redirect: '/calling/logs'
         },
@@ -340,39 +363,39 @@ const router = createRouter({
 // Navigation items with permissions in priority order (matches AppLayout.vue)
 // Used to find the first accessible route for a user
 const navigationOrder = [
-  { path: '/', permission: 'analytics' },
-  { path: '/chat', permission: 'chat' },
-  { path: '/chatbot', permission: 'settings.chatbot', childPaths: [
-    { path: '/chatbot', permission: 'settings.chatbot' },
-    { path: '/chatbot/keywords', permission: 'chatbot.keywords' },
-    { path: '/chatbot/flows', permission: 'flows.chatbot' },
-    { path: '/chatbot/ai', permission: 'chatbot.ai' }
+  { path: '/app/dashboard', permission: 'analytics' },
+  { path: '/app/chat', permission: 'chat' },
+  { path: '/app/chatbot', permission: 'settings.chatbot', childPaths: [
+    { path: '/app/chatbot', permission: 'settings.chatbot' },
+    { path: '/app/chatbot/keywords', permission: 'chatbot.keywords' },
+    { path: '/app/chatbot/flows', permission: 'flows.chatbot' },
+    { path: '/app/chatbot/ai', permission: 'chatbot.ai' }
   ]},
-  { path: '/chatbot/transfers', permission: 'transfers' },
-  { path: '/analytics/agents', permission: 'analytics.agents' },
-  { path: '/analytics/meta-insights', permission: 'analytics' },
-  { path: '/templates', permission: 'templates' },
-  { path: '/flows', permission: 'flows.whatsapp' },
-  { path: '/campaigns', permission: 'campaigns' },
-  { path: '/calling/logs', permission: 'call_logs', childPaths: [
-    { path: '/calling/logs', permission: 'call_logs' },
-    { path: '/calling/ivr-flows', permission: 'ivr_flows' },
-    { path: '/calling/transfers', permission: 'call_transfers' }
+  { path: '/app/chatbot/transfers', permission: 'transfers' },
+  { path: '/app/analytics/agents', permission: 'analytics.agents' },
+  { path: '/app/analytics/meta-insights', permission: 'analytics' },
+  { path: '/app/templates', permission: 'templates' },
+  { path: '/app/flows', permission: 'flows.whatsapp' },
+  { path: '/app/campaigns', permission: 'campaigns' },
+  { path: '/app/calling/logs', permission: 'call_logs', childPaths: [
+    { path: '/app/calling/logs', permission: 'call_logs' },
+    { path: '/app/calling/ivr-flows', permission: 'ivr_flows' },
+    { path: '/app/calling/transfers', permission: 'call_transfers' }
   ]},
-  { path: '/settings', permission: 'settings.general', childPaths: [
-    { path: '/settings', permission: 'settings.general' },
-    { path: '/settings/chatbot', permission: 'settings.chatbot' },
-    { path: '/settings/accounts', permission: 'accounts' },
-    { path: '/settings/canned-responses', permission: 'canned_responses' },
-    { path: '/settings/contacts', permission: 'contacts' },
-    { path: '/settings/tags', permission: 'tags' },
-    { path: '/settings/teams', permission: 'teams' },
-    { path: '/settings/users', permission: 'users' },
-    { path: '/settings/roles', permission: 'roles' },
-    { path: '/settings/api-keys', permission: 'api_keys' },
-    { path: '/settings/webhooks', permission: 'webhooks' },
-    { path: '/settings/custom-actions', permission: 'custom_actions' },
-    { path: '/settings/sso', permission: 'settings.sso' }
+  { path: '/app/settings', permission: 'settings.general', childPaths: [
+    { path: '/app/settings', permission: 'settings.general' },
+    { path: '/app/settings/chatbot', permission: 'settings.chatbot' },
+    { path: '/app/settings/accounts', permission: 'accounts' },
+    { path: '/app/settings/canned-responses', permission: 'canned_responses' },
+    { path: '/app/settings/contacts', permission: 'contacts' },
+    { path: '/app/settings/tags', permission: 'tags' },
+    { path: '/app/settings/teams', permission: 'teams' },
+    { path: '/app/settings/users', permission: 'users' },
+    { path: '/app/settings/roles', permission: 'roles' },
+    { path: '/app/settings/api-keys', permission: 'api_keys' },
+    { path: '/app/settings/webhooks', permission: 'webhooks' },
+    { path: '/app/settings/custom-actions', permission: 'custom_actions' },
+    { path: '/app/settings/sso', permission: 'settings.sso' }
   ]}
 ]
 
@@ -400,8 +423,13 @@ function getFirstAccessibleRoute(authStore: ReturnType<typeof useAuthStore>): st
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
 
-  // Hydrate the store from localStorage before any route decision — an authenticated user hitting /login must be redirected away.
-  if (!authStore.isAuthenticated && (to.meta.requiresAuth !== false || to.name === 'login' || to.name === 'register')) {
+  // Hydrate the store from localStorage before any route decision — an
+  // authenticated user hitting /login, /register, or the public landing /
+  // must be detected so we can bounce them. Without this, restoreSession
+  // is only triggered for protected routes, which means the landing
+  // guard can't tell a logged-in user from a guest and shows them the
+  // marketing page instead of the app.
+  if (!authStore.isAuthenticated && (to.meta.requiresAuth !== false || to.name === 'login' || to.name === 'register' || to.name === 'landing')) {
     authStore.restoreSession()
   }
 
@@ -423,6 +451,10 @@ router.beforeEach(async (to, _from, next) => {
     // Redirect to appropriate page if already logged in
     if (authStore.isAuthenticated && (to.name === 'login' || to.name === 'register')) {
       return next({ path: getFirstAccessibleRoute(authStore) })
+    }
+    // Authenticated users don't see the public landing — send them to the app.
+    if (authStore.isAuthenticated && to.name === 'landing') {
+      return next({ path: '/app/dashboard' })
     }
   }
 

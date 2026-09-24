@@ -115,7 +115,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
+  <div class="flex flex-col h-full">
     <PageHeader
       :title="t('auditLogs.title')"
       :description="t('auditLogs.description')"
@@ -126,119 +126,123 @@ onMounted(async () => {
     <ScrollArea class="flex-1">
       <div class="p-6">
         <div>
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle>{{ t('auditLogs.allActivity') }}</CardTitle>
-                  <CardDescription>{{ t('auditLogs.allActivityDesc') }}</CardDescription>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>{{ t('auditLogs.allActivity') }}</CardTitle>
+                    <CardDescription>{{ t('auditLogs.allActivityDesc') }}</CardDescription>
+                  </div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <Select v-model="filterUser" @update:model-value="applyFilter">
+                      <SelectTrigger class="w-[180px]">
+                        <SelectValue :placeholder="t('auditLogs.allUsers')" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{{ t('auditLogs.allUsers') }}</SelectItem>
+                        <SelectItem v-for="user in usersStore.users" :key="user.id" :value="user.id">
+                          {{ user.full_name || user.email }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select v-model="filterAction" @update:model-value="applyFilter">
+                      <SelectTrigger class="w-[140px]">
+                        <SelectValue :placeholder="t('auditLogs.allActions')" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{{ t('auditLogs.allActions') }}</SelectItem>
+                        <SelectItem value="created">{{ t('auditLogs.created') }}</SelectItem>
+                        <SelectItem value="updated">{{ t('auditLogs.updated') }}</SelectItem>
+                        <SelectItem value="deleted">{{ t('auditLogs.deleted') }}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select v-model="filterResourceType" @update:model-value="applyFilter">
+                      <SelectTrigger class="w-[180px]">
+                        <SelectValue :placeholder="t('auditLogs.allResources')" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{{ t('auditLogs.allResources') }}</SelectItem>
+                        <SelectItem value="account">Account</SelectItem>
+                        <SelectItem value="ai_context">AI Context</SelectItem>
+                        <SelectItem value="campaign">Campaign</SelectItem>
+                        <SelectItem value="chatbot_settings">Chatbot Settings</SelectItem>
+                        <SelectItem value="chatbot_flow">Chatbot Flow</SelectItem>
+                        <SelectItem value="ivr_flow">IVR Flow</SelectItem>
+                        <SelectItem value="keyword_rule">Keyword Rule</SelectItem>
+                        <SelectItem value="team">Team</SelectItem>
+                        <SelectItem value="template">Template</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <DateRangePicker
+                      v-model:selected-range="selectedRange"
+                      v-model:custom-date-range="customDateRange"
+                      v-model:is-date-picker-open="isDatePickerOpen"
+                      :format-date-range-display="formatDateRangeDisplay"
+                      @apply-custom="applyCustomRange"
+                    />
+                  </div>
                 </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                  <Select v-model="filterUser" @update:model-value="applyFilter">
-                    <SelectTrigger class="w-[180px]">
-                      <SelectValue :placeholder="t('auditLogs.allUsers')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{{ t('auditLogs.allUsers') }}</SelectItem>
-                      <SelectItem v-for="user in usersStore.users" :key="user.id" :value="user.id">
-                        {{ user.full_name || user.email }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select v-model="filterAction" @update:model-value="applyFilter">
-                    <SelectTrigger class="w-[140px]">
-                      <SelectValue :placeholder="t('auditLogs.allActions')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{{ t('auditLogs.allActions') }}</SelectItem>
-                      <SelectItem value="created">{{ t('auditLogs.created') }}</SelectItem>
-                      <SelectItem value="updated">{{ t('auditLogs.updated') }}</SelectItem>
-                      <SelectItem value="deleted">{{ t('auditLogs.deleted') }}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select v-model="filterResourceType" @update:model-value="applyFilter">
-                    <SelectTrigger class="w-[180px]">
-                      <SelectValue :placeholder="t('auditLogs.allResources')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">{{ t('auditLogs.allResources') }}</SelectItem>
-                      <SelectItem value="account">Account</SelectItem>
-                      <SelectItem value="ai_context">AI Context</SelectItem>
-                      <SelectItem value="campaign">Campaign</SelectItem>
-                      <SelectItem value="chatbot_settings">Chatbot Settings</SelectItem>
-                      <SelectItem value="chatbot_flow">Chatbot Flow</SelectItem>
-                      <SelectItem value="ivr_flow">IVR Flow</SelectItem>
-                      <SelectItem value="keyword_rule">Keyword Rule</SelectItem>
-                      <SelectItem value="team">Team</SelectItem>
-                      <SelectItem value="template">Template</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <DateRangePicker
-                    v-model:selected-range="selectedRange"
-                    v-model:custom-date-range="customDateRange"
-                    v-model:is-date-picker-open="isDatePickerOpen"
-                    :format-date-range-display="formatDateRangeDisplay"
-                    @apply-custom="applyCustomRange"
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                :items="logs"
-                :columns="columns"
-                :is-loading="isLoading"
-                :empty-icon="ScrollText"
-                :empty-title="t('auditLogs.noLogs')"
-                :empty-description="t('auditLogs.noLogsDesc')"
-                v-model:sort-key="sortKey"
-                v-model:sort-direction="sortDirection"
-                server-pagination
-                :current-page="currentPage"
-                :total-items="totalItems"
-                :page-size="pageSize"
-                item-name="audit logs"
-                @page-change="handlePageChange"
-              >
-                <template #cell-user_name="{ item: log }">
-                  <div class="py-1">
-                    <RouterLink
-                      :to="`/settings/audit-logs/${log.id}`"
-                      class="font-medium text-inherit no-underline hover:opacity-80"
-                    >
-                      {{ log.user_name }}
-                    </RouterLink>
-                  </div>
-                </template>
+              </CardHeader>
+              <CardContent>
+                <DataTable
+                  :items="logs"
+                  :columns="columns"
+                  :is-loading="isLoading"
+                  :empty-icon="ScrollText"
+                  :empty-title="t('auditLogs.noLogs')"
+                  :empty-description="t('auditLogs.noLogsDesc')"
+                  v-model:sort-key="sortKey"
+                  v-model:sort-direction="sortDirection"
+                  server-pagination
+                  :current-page="currentPage"
+                  :total-items="totalItems"
+                  :page-size="pageSize"
+                  item-name="audit logs"
+                  @page-change="handlePageChange"
+                >
+                  <template #cell-user_name="{ item: log }">
+                    <div class="py-1">
+                      <RouterLink
+                        :to="`/app/settings/audit-logs/${log.id}`"
+                        class="font-medium text-inherit no-underline hover:opacity-80"
+                      >
+                        {{ log.user_name }}
+                      </RouterLink>
+                    </div>
+                  </template>
 
-                <template #cell-action="{ item: log }">
-                  <div class="py-1">
-                    <Badge variant="outline" :class="[actionVariant(log.action), 'text-xs']">
-                      {{ t(`auditLogs.${log.action}`) }}
-                    </Badge>
-                  </div>
-                </template>
+                  <template #cell-action="{ item: log }">
+                    <div class="py-1">
+                      <Badge variant="outline" :class="[actionVariant(log.action), 'text-xs']">
+                        {{ t(`auditLogs.${log.action}`) }}
+                      </Badge>
+                    </div>
+                  </template>
 
-                <template #cell-resource_type="{ item: log }">
-                  <div class="py-1">
-                    <span class="text-sm text-muted-foreground">{{ formatLabel(log.resource_type) }}</span>
-                  </div>
-                </template>
+                  <template #cell-resource_type="{ item: log }">
+                    <div class="py-1">
+                      <span class="text-sm text-muted-foreground">{{ formatLabel(log.resource_type) }}</span>
+                    </div>
+                  </template>
 
-                <template #cell-changes="{ item: log }">
-                  <div class="py-1">
-                    <span class="text-sm text-muted-foreground">{{ changeSummary(log) }}</span>
-                  </div>
-                </template>
+                  <template #cell-changes="{ item: log }">
+                    <div class="py-1">
+                      <span class="text-sm text-muted-foreground">{{ changeSummary(log) }}</span>
+                    </div>
+                  </template>
 
-                <template #cell-created_at="{ item: log }">
-                  <div class="py-1">
-                    <span class="text-muted-foreground text-sm">{{ formatDate(log.created_at) }}</span>
-                  </div>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                  <template #cell-created_at="{ item: log }">
+                    <div class="py-1">
+                      <span class="text-muted-foreground text-sm">{{ formatDate(log.created_at) }}</span>
+                    </div>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

@@ -150,7 +150,7 @@ async function save() {
       response.value = created
       await nextTick()
       hasChanges.value = false
-      router.replace(`/settings/canned-responses/${created.id}`)
+      router.replace(`/app/settings/canned-responses/${created.id}`)
     } else if (response.value) {
       await cannedResponsesService.update(response.value.id, {
         name: form.value.name,
@@ -176,7 +176,7 @@ async function deleteResponse() {
     await cannedResponsesService.delete(response.value.id)
     toast.success(t('common.deletedSuccess', { resource: t('resources.CannedResponse') }))
     hasChanges.value = false
-    router.push('/settings/canned-responses')
+    router.push('/app/settings/canned-responses')
   } catch (e) {
     toast.error(getErrorMessage(e, t('common.failedDelete', { resource: t('resources.cannedResponse') })))
   }
@@ -202,7 +202,7 @@ onMounted(() => { loadResponse() })
       :title="pageTitle"
       :icon="MessageSquareText"
       icon-gradient="bg-gradient-to-br from-teal-500 to-emerald-600 shadow-teal-500/20"
-      back-link="/settings/canned-responses"
+      back-link="/app/settings/canned-responses"
       :breadcrumbs="breadcrumbs"
       :is-loading="isLoading"
       :is-not-found="isNotFound"

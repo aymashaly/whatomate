@@ -813,20 +813,24 @@ const chartOptions = {
               </div>
 
               <!-- Chart -->
-              <Card>
-                <CardHeader>
-                  <CardTitle>{{ $t('metaInsights.messageDeliveryOverTime') }}</CardTitle>
-                  <CardDescription>{{ $t('metaInsights.sentVsDelivered') }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div class="h-80">
-                    <Line v-if="messagingChartData.labels.length > 0" :data="messagingChartData" :options="chartOptions" />
-                    <div v-else class="h-full flex items-center justify-center text-muted-foreground">
-                      {{ $t('metaInsights.noDataForPeriod') }}
+              <div class="ios-card relative overflow-hidden">
+                <div class="ios-edge-glow" aria-hidden="true" />
+                <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                  <CardHeader>
+                    <CardTitle>{{ $t('metaInsights.messageDeliveryOverTime') }}</CardTitle>
+                    <CardDescription>{{ $t('metaInsights.sentVsDelivered') }}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div class="h-80">
+                      <Line v-if="messagingChartData.labels.length > 0" :data="messagingChartData" :options="chartOptions" />
+                      <div v-else class="h-full flex items-center justify-center text-muted-foreground">
+                        {{ $t('metaInsights.noDataForPeriod') }}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+
+                              </Card>
+              </div>
             </template>
             <template v-else>
               <div class="text-center py-12 text-muted-foreground">
@@ -877,108 +881,124 @@ const chartOptions = {
                 </div>
 
                 <!-- Chart -->
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{{ $t('metaInsights.messagesCostByCategory') }}</CardTitle>
-                    <CardDescription>{{ $t('metaInsights.breakdownByCategory') }}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div class="h-80">
-                      <Bar v-if="Object.keys(group.agg.byCategory).length > 0" :data="pricingChartDataFor(group.agg)" :options="chartOptions" />
-                      <div v-else class="h-full flex items-center justify-center text-muted-foreground">
-                        {{ $t('metaInsights.noDataForPeriod') }}
+                <div class="ios-card relative overflow-hidden">
+                  <div class="ios-edge-glow" aria-hidden="true" />
+                  <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                    <CardHeader>
+                      <CardTitle>{{ $t('metaInsights.messagesCostByCategory') }}</CardTitle>
+                      <CardDescription>{{ $t('metaInsights.breakdownByCategory') }}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div class="h-80">
+                        <Bar v-if="Object.keys(group.agg.byCategory).length > 0" :data="pricingChartDataFor(group.agg)" :options="chartOptions" />
+                        <div v-else class="h-full flex items-center justify-center text-muted-foreground">
+                          {{ $t('metaInsights.noDataForPeriod') }}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
 
+                                  </Card>
+                </div>
                 <!-- Detailed Breakdown -->
                 <div class="grid gap-6 lg:grid-cols-2">
                   <!-- Free Messages Breakdown -->
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{{ $t('metaInsights.freeMessages') }}</CardTitle>
-                      <CardDescription>{{ $t('metaInsights.freeTierBreakdown') }}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div class="space-y-3">
-                        <div class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100">
-                          <span class="text-sm text-white/70 light:text-gray-600">{{ $t('metaInsights.freeCustomerService') }}</span>
-                          <span class="font-semibold text-white light:text-gray-900">{{ group.agg.freeMessages.customerService.toLocaleString() }}</span>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100">
-                          <span class="text-sm text-white/70 light:text-gray-600">{{ $t('metaInsights.freeEntryPoint') }}</span>
-                          <span class="font-semibold text-white light:text-gray-900">{{ group.agg.freeMessages.entryPoint.toLocaleString() }}</span>
-                        </div>
-                        <div class="flex items-center justify-between py-2 bg-green-500/10 rounded px-2 -mx-2">
-                          <span class="text-sm font-medium text-green-400 light:text-green-600">{{ $t('metaInsights.totalFree') }}</span>
-                          <span class="font-bold text-green-400 light:text-green-600">{{ group.agg.freeMessages.total.toLocaleString() }}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <!-- Paid Messages by Category -->
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{{ $t('metaInsights.paidMessages') }}</CardTitle>
-                      <CardDescription>{{ $t('metaInsights.paidBreakdown') }}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div class="space-y-3">
-                        <div v-for="(count, category) in group.agg.paidMessages.byCategory" :key="category" class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100 last:border-0">
-                          <span class="text-sm text-white/70 light:text-gray-600">{{ formatCategory(category as string) }}</span>
-                          <span class="font-semibold text-white light:text-gray-900">{{ (count as number).toLocaleString() }}</span>
-                        </div>
-                        <div v-if="Object.keys(group.agg.paidMessages.byCategory).length === 0" class="text-center text-white/40 light:text-gray-400 py-4">
-                          {{ $t('metaInsights.noPaidMessages') }}
-                        </div>
-                        <div v-else class="flex items-center justify-between py-2 bg-amber-500/10 rounded px-2 -mx-2">
-                          <span class="text-sm font-medium text-amber-400 light:text-amber-600">{{ $t('metaInsights.totalPaid') }}</span>
-                          <span class="font-bold text-amber-400 light:text-amber-600">{{ group.agg.paidMessages.total.toLocaleString() }}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <!-- Cost by Category -->
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{{ $t('metaInsights.costByCategory') }}</CardTitle>
-                      <CardDescription>{{ $t('metaInsights.approximateCharges') }}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div class="space-y-3">
-                        <div v-for="(cost, category) in group.agg.costByCategory" :key="category" class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100 last:border-0">
-                          <span class="text-sm text-white/70 light:text-gray-600">{{ formatCategory(category as string) }}</span>
-                          <span class="font-semibold text-white light:text-gray-900">{{ formatCurrency(cost as number, group.currency) }}</span>
-                        </div>
-                        <div class="flex items-center justify-between py-2 bg-emerald-500/10 rounded px-2 -mx-2">
-                          <span class="text-sm font-medium text-emerald-400 light:text-emerald-600">{{ $t('metaInsights.totalCost') }}</span>
-                          <span class="font-bold text-emerald-400 light:text-emerald-600">{{ formatCurrency(group.agg.totals.cost, group.currency) }}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <!-- By Country -->
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{{ $t('metaInsights.byCountry') }}</CardTitle>
-                      <CardDescription>{{ $t('metaInsights.messagesCostByCountry') }}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div class="space-y-3">
-                        <div v-for="(data, country) in group.agg.byCountry" :key="country" class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100 last:border-0">
-                          <span class="text-sm text-white/70 light:text-gray-600">{{ country }}</span>
-                          <div class="text-right">
-                            <span class="font-semibold text-white light:text-gray-900">{{ (data as {volume: number, cost: number}).volume.toLocaleString() }} {{ $t('metaInsights.msgs') }}</span>
-                            <span class="text-white/50 light:text-gray-500 ml-2">{{ formatCurrency((data as {volume: number, cost: number}).cost, group.currency) }}</span>
+                  <div class="ios-card relative overflow-hidden">
+                    <div class="ios-edge-glow" aria-hidden="true" />
+                    <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                      <CardHeader>
+                        <CardTitle>{{ $t('metaInsights.freeMessages') }}</CardTitle>
+                        <CardDescription>{{ $t('metaInsights.freeTierBreakdown') }}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div class="space-y-3">
+                          <div class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100">
+                            <span class="text-sm text-white/70 light:text-gray-600">{{ $t('metaInsights.freeCustomerService') }}</span>
+                            <span class="font-semibold text-white light:text-gray-900">{{ group.agg.freeMessages.customerService.toLocaleString() }}</span>
+                          </div>
+                          <div class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100">
+                            <span class="text-sm text-white/70 light:text-gray-600">{{ $t('metaInsights.freeEntryPoint') }}</span>
+                            <span class="font-semibold text-white light:text-gray-900">{{ group.agg.freeMessages.entryPoint.toLocaleString() }}</span>
+                          </div>
+                          <div class="flex items-center justify-between py-2 bg-green-500/10 rounded px-2 -mx-2">
+                            <span class="text-sm font-medium text-green-400 light:text-green-600">{{ $t('metaInsights.totalFree') }}</span>
+                            <span class="font-bold text-green-400 light:text-green-600">{{ group.agg.freeMessages.total.toLocaleString() }}</span>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+
+                                      </Card>
+                  </div>
+                  <!-- Paid Messages by Category -->
+                  <div class="ios-card relative overflow-hidden">
+                    <div class="ios-edge-glow" aria-hidden="true" />
+                    <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                      <CardHeader>
+                        <CardTitle>{{ $t('metaInsights.paidMessages') }}</CardTitle>
+                        <CardDescription>{{ $t('metaInsights.paidBreakdown') }}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div class="space-y-3">
+                          <div v-for="(count, category) in group.agg.paidMessages.byCategory" :key="category" class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100 last:border-0">
+                            <span class="text-sm text-white/70 light:text-gray-600">{{ formatCategory(category as string) }}</span>
+                            <span class="font-semibold text-white light:text-gray-900">{{ (count as number).toLocaleString() }}</span>
+                          </div>
+                          <div v-if="Object.keys(group.agg.paidMessages.byCategory).length === 0" class="text-center text-white/40 light:text-gray-400 py-4">
+                            {{ $t('metaInsights.noPaidMessages') }}
+                          </div>
+                          <div v-else class="flex items-center justify-between py-2 bg-amber-500/10 rounded px-2 -mx-2">
+                            <span class="text-sm font-medium text-amber-400 light:text-amber-600">{{ $t('metaInsights.totalPaid') }}</span>
+                            <span class="font-bold text-amber-400 light:text-amber-600">{{ group.agg.paidMessages.total.toLocaleString() }}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+
+                                      </Card>
+                  </div>
+                  <!-- Cost by Category -->
+                  <div class="ios-card relative overflow-hidden">
+                    <div class="ios-edge-glow" aria-hidden="true" />
+                    <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                      <CardHeader>
+                        <CardTitle>{{ $t('metaInsights.costByCategory') }}</CardTitle>
+                        <CardDescription>{{ $t('metaInsights.approximateCharges') }}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div class="space-y-3">
+                          <div v-for="(cost, category) in group.agg.costByCategory" :key="category" class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100 last:border-0">
+                            <span class="text-sm text-white/70 light:text-gray-600">{{ formatCategory(category as string) }}</span>
+                            <span class="font-semibold text-white light:text-gray-900">{{ formatCurrency(cost as number, group.currency) }}</span>
+                          </div>
+                          <div class="flex items-center justify-between py-2 bg-emerald-500/10 rounded px-2 -mx-2">
+                            <span class="text-sm font-medium text-emerald-400 light:text-emerald-600">{{ $t('metaInsights.totalCost') }}</span>
+                            <span class="font-bold text-emerald-400 light:text-emerald-600">{{ formatCurrency(group.agg.totals.cost, group.currency) }}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+
+                                      </Card>
+                  </div>
+                  <!-- By Country -->
+                  <div class="ios-card relative overflow-hidden">
+                    <div class="ios-edge-glow" aria-hidden="true" />
+                    <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                      <CardHeader>
+                        <CardTitle>{{ $t('metaInsights.byCountry') }}</CardTitle>
+                        <CardDescription>{{ $t('metaInsights.messagesCostByCountry') }}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div class="space-y-3">
+                          <div v-for="(data, country) in group.agg.byCountry" :key="country" class="flex items-center justify-between py-2 border-b border-white/[0.08] light:border-gray-100 last:border-0">
+                            <span class="text-sm text-white/70 light:text-gray-600">{{ country }}</span>
+                            <div class="text-right">
+                              <span class="font-semibold text-white light:text-gray-900">{{ (data as {volume: number, cost: number}).volume.toLocaleString() }} {{ $t('metaInsights.msgs') }}</span>
+                              <span class="text-white/50 light:text-gray-500 ml-2">{{ formatCurrency((data as {volume: number, cost: number}).cost, group.currency) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+
+                                      </Card>
+                  </div>
                 </div>
               </div>
             </template>
@@ -1095,63 +1115,67 @@ const chartOptions = {
                 </div>
 
                 <!-- Template Performance Table -->
-                <Card>
-                  <CardHeader>
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div>
-                        <CardTitle>{{ $t('metaInsights.templatePerformance') }}</CardTitle>
-                        <CardDescription>{{ $t('metaInsights.performanceByTemplate') }}</CardDescription>
+                <div class="ios-card relative overflow-hidden">
+                  <div class="ios-edge-glow" aria-hidden="true" />
+                  <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                    <CardHeader>
+                      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                          <CardTitle>{{ $t('metaInsights.templatePerformance') }}</CardTitle>
+                          <CardDescription>{{ $t('metaInsights.performanceByTemplate') }}</CardDescription>
+                        </div>
+                        <div class="relative w-full sm:w-64">
+                          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 light:text-gray-400" />
+                          <Input
+                            v-model="templateSearchQuery"
+                            :placeholder="$t('metaInsights.searchTemplates')"
+                            class="pl-9"
+                          />
+                        </div>
                       </div>
-                      <div class="relative w-full sm:w-64">
-                        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40 light:text-gray-400" />
-                        <Input
-                          v-model="templateSearchQuery"
-                          :placeholder="$t('metaInsights.searchTemplates')"
-                          class="pl-9"
-                        />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <DataTable
-                      :items="filteredTemplateRows(group.agg)"
-                      :columns="templateColumns"
-                      v-model:sort-key="templateSortKey"
-                      v-model:sort-direction="templateSortDirection"
-                      :empty-title="templateSearchQuery ? $t('metaInsights.noTemplatesMatching') : $t('metaInsights.noTemplateData')"
-                      :empty-description="templateSearchQuery ? '' : $t('metaInsights.noDataForSelectedPeriod')"
-                    >
-                      <template #cell-name="{ item }">
-                        <div class="font-medium">{{ item.name }}</div>
-                        <div v-if="item.name !== item.templateId" class="text-xs text-muted-foreground font-mono">{{ item.templateId }}</div>
-                      </template>
-                      <template #cell-sent="{ item }">
-                        {{ item.sent.toLocaleString() }}
-                      </template>
-                      <template #cell-delivered="{ item }">
-                        {{ item.delivered.toLocaleString() }}
-                      </template>
-                      <template #cell-read="{ item }">
-                        {{ item.read.toLocaleString() }}
-                      </template>
-                      <template #cell-replied="{ item }">
-                        {{ item.replied.toLocaleString() }}
-                      </template>
-                      <template #cell-clicked="{ item }">
-                        {{ item.clicked.toLocaleString() }}
-                      </template>
-                      <template #cell-deliveryRate="{ item }">
-                        {{ item.deliveryRate.toFixed(1) }}%
-                      </template>
-                      <template #cell-readRate="{ item }">
-                        {{ item.readRate.toFixed(1) }}%
-                      </template>
-                      <template #cell-cost="{ item }">
-                        {{ item.cost > 0 ? formatCurrency(item.cost, group.currency) : '-' }}
-                      </template>
-                    </DataTable>
-                  </CardContent>
-                </Card>
+                    </CardHeader>
+                    <CardContent>
+                      <DataTable
+                        :items="filteredTemplateRows(group.agg)"
+                        :columns="templateColumns"
+                        v-model:sort-key="templateSortKey"
+                        v-model:sort-direction="templateSortDirection"
+                        :empty-title="templateSearchQuery ? $t('metaInsights.noTemplatesMatching') : $t('metaInsights.noTemplateData')"
+                        :empty-description="templateSearchQuery ? '' : $t('metaInsights.noDataForSelectedPeriod')"
+                      >
+                        <template #cell-name="{ item }">
+                          <div class="font-medium">{{ item.name }}</div>
+                          <div v-if="item.name !== item.templateId" class="text-xs text-muted-foreground font-mono">{{ item.templateId }}</div>
+                        </template>
+                        <template #cell-sent="{ item }">
+                          {{ item.sent.toLocaleString() }}
+                        </template>
+                        <template #cell-delivered="{ item }">
+                          {{ item.delivered.toLocaleString() }}
+                        </template>
+                        <template #cell-read="{ item }">
+                          {{ item.read.toLocaleString() }}
+                        </template>
+                        <template #cell-replied="{ item }">
+                          {{ item.replied.toLocaleString() }}
+                        </template>
+                        <template #cell-clicked="{ item }">
+                          {{ item.clicked.toLocaleString() }}
+                        </template>
+                        <template #cell-deliveryRate="{ item }">
+                          {{ item.deliveryRate.toFixed(1) }}%
+                        </template>
+                        <template #cell-readRate="{ item }">
+                          {{ item.readRate.toFixed(1) }}%
+                        </template>
+                        <template #cell-cost="{ item }">
+                          {{ item.cost > 0 ? formatCurrency(item.cost, group.currency) : '-' }}
+                        </template>
+                      </DataTable>
+                    </CardContent>
+
+                                  </Card>
+                </div>
               </div>
             </template>
             <template v-else>
@@ -1251,19 +1275,23 @@ const chartOptions = {
                 </div>
 
                 <!-- Chart -->
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{{ $t('metaInsights.callsOverTime') }}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div class="h-80">
-                      <Line v-if="group.agg.timeSeries.length > 0" :data="callChartDataFor(group.agg)" :options="chartOptions" />
-                      <div v-else class="h-full flex items-center justify-center text-muted-foreground">
-                        {{ $t('metaInsights.noDataForPeriod') }}
+                <div class="ios-card relative overflow-hidden">
+                  <div class="ios-edge-glow" aria-hidden="true" />
+                  <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+                    <CardHeader>
+                      <CardTitle>{{ $t('metaInsights.callsOverTime') }}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div class="h-80">
+                        <Line v-if="group.agg.timeSeries.length > 0" :data="callChartDataFor(group.agg)" :options="chartOptions" />
+                        <div v-else class="h-full flex items-center justify-center text-muted-foreground">
+                          {{ $t('metaInsights.noDataForPeriod') }}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+
+                                  </Card>
+                </div>
               </div>
             </template>
             <template v-else>

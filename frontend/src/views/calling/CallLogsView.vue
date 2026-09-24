@@ -239,125 +239,131 @@ watch(phoneSearch, () => {
     />
 
     <!-- Filters -->
-    <Card v-if="!error">
-      <CardContent class="pt-6">
-        <div class="flex gap-4 flex-wrap items-center">
-          <SearchInput v-model="phoneSearch" :placeholder="t('calling.searchByPhone')" class="w-48" />
-          <Select v-model="statusFilter">
-            <SelectTrigger class="w-48">
-              <SelectValue :placeholder="t('calling.filterByStatus')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+    <div class="ios-card relative overflow-hidden">
+      <div class="ios-edge-glow" aria-hidden="true" />
+      <Card v-if="!error" class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+        <CardContent class="pt-6">
+          <div class="flex gap-4 flex-wrap items-center">
+            <SearchInput v-model="phoneSearch" :placeholder="t('calling.searchByPhone')" class="w-48" />
+            <Select v-model="statusFilter">
+              <SelectTrigger class="w-48">
+                <SelectValue :placeholder="t('calling.filterByStatus')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select v-model="directionFilter">
-            <SelectTrigger class="w-48">
-              <SelectValue :placeholder="t('calling.filterByDirection')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{{ t('calling.allDirections') }}</SelectItem>
-              <SelectItem value="incoming">{{ t('calling.incoming') }}</SelectItem>
-              <SelectItem value="outgoing">{{ t('calling.outgoing') }}</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select v-model="directionFilter">
+              <SelectTrigger class="w-48">
+                <SelectValue :placeholder="t('calling.filterByDirection')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{{ t('calling.allDirections') }}</SelectItem>
+                <SelectItem value="incoming">{{ t('calling.incoming') }}</SelectItem>
+                <SelectItem value="outgoing">{{ t('calling.outgoing') }}</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select v-model="ivrFlowFilter">
-            <SelectTrigger class="w-48">
-              <SelectValue :placeholder="t('calling.filterByIVRFlow')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{{ t('calling.allIVRFlows') }}</SelectItem>
-              <SelectItem v-for="flow in ivrFlows" :key="flow.id" :value="flow.id">
-                {{ flow.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+            <Select v-model="ivrFlowFilter">
+              <SelectTrigger class="w-48">
+                <SelectValue :placeholder="t('calling.filterByIVRFlow')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{{ t('calling.allIVRFlows') }}</SelectItem>
+                <SelectItem v-for="flow in ivrFlows" :key="flow.id" :value="flow.id">
+                  {{ flow.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select v-model="accountFilter">
-            <SelectTrigger class="w-48">
-              <SelectValue :placeholder="t('calling.filterByAccount')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{{ t('calling.allAccounts') }}</SelectItem>
-              <SelectItem v-for="acc in accounts" :key="acc.name" :value="acc.name">
-                {{ acc.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </CardContent>
-    </Card>
+            <Select v-model="accountFilter">
+              <SelectTrigger class="w-48">
+                <SelectValue :placeholder="t('calling.filterByAccount')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{{ t('calling.allAccounts') }}</SelectItem>
+                <SelectItem v-for="acc in accounts" :key="acc.name" :value="acc.name">
+                  {{ acc.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
 
+          </Card>
+    </div>
     <!-- Table -->
-    <Card v-if="!error">
-      <CardContent class="pt-6">
-        <DataTable
-          :items="store.callLogs"
-          :columns="columns"
-          :is-loading="store.callLogsLoading"
-          :empty-icon="Phone"
-          :empty-title="t('calling.noCallLogs')"
-          server-pagination
-          :current-page="currentPage"
-          :total-items="store.callLogsTotal"
-          :page-size="pageSize"
-          item-name="call logs"
-          max-height="calc(100vh - 320px)"
-          @page-change="handlePageChange"
-        >
-          <template #cell-caller="{ item: log }">
-            <div class="cursor-pointer" @click="viewDetail(log)">
-              <p class="font-medium">{{ log.contact?.profile_name || log.caller_phone }}</p>
-              <p v-if="log.contact?.profile_name" class="text-sm text-muted-foreground">{{ log.caller_phone }}</p>
-            </div>
-          </template>
-          <template #cell-direction="{ item: log }">
-            <span class="inline-flex items-center gap-1.5 text-muted-foreground">
-              <PhoneIncoming v-if="log.direction === 'incoming'" class="h-3.5 w-3.5" />
-              <PhoneOutgoing v-else class="h-3.5 w-3.5" />
-              {{ t(`calling.${log.direction}`) }}
-            </span>
-          </template>
-          <template #cell-status="{ item: log }">
-            <Badge :variant="statusVariant(log.status)">
-              <component :is="statusIcon(log.status)" class="h-3 w-3 mr-1" />
-              {{ t(`calling.${log.status}`) }}
-            </Badge>
-          </template>
-          <template #cell-duration="{ item: log }">
-            <span class="inline-flex items-center gap-1.5">
-              {{ formatDuration(log.duration) }}
-              <Mic v-if="log.recording_s3_key" class="h-3.5 w-3.5 text-muted-foreground" :title="t('calling.recording')" />
-            </span>
-          </template>
-          <template #cell-agent="{ item: log }">
-            <span v-if="log.agent" class="text-sm">{{ log.agent.full_name }}</span>
-            <span v-else class="text-muted-foreground">-</span>
-          </template>
-          <template #cell-disconnected_by="{ item: log }">
-            <Badge v-if="log.disconnected_by" :variant="disconnectedByVariant(log.disconnected_by)">
-              <component :is="disconnectedByIcon(log.disconnected_by)" class="h-3 w-3 mr-1" />
-              {{ t(`calling.disconnectedBy${log.disconnected_by.charAt(0).toUpperCase() + log.disconnected_by.slice(1)}`) }}
-            </Badge>
-            <span v-else class="text-muted-foreground">-</span>
-          </template>
-          <template #cell-ivr_flow="{ item: log }">
-            {{ log.ivr_flow?.name || '-' }}
-          </template>
-          <template #cell-whatsapp_account="{ item: log }">
-            {{ log.whatsapp_account }}
-          </template>
-          <template #cell-started_at="{ item: log }">
-            {{ formatDate(log.started_at || log.created_at) }}
-          </template>
-        </DataTable>
-      </CardContent>
-    </Card>
+    <div class="ios-card relative overflow-hidden">
+      <div class="ios-edge-glow" aria-hidden="true" />
+      <Card v-if="!error" class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+        <CardContent class="pt-6">
+          <DataTable
+            :items="store.callLogs"
+            :columns="columns"
+            :is-loading="store.callLogsLoading"
+            :empty-icon="Phone"
+            :empty-title="t('calling.noCallLogs')"
+            server-pagination
+            :current-page="currentPage"
+            :total-items="store.callLogsTotal"
+            :page-size="pageSize"
+            item-name="call logs"
+            max-height="calc(100vh - 320px)"
+            @page-change="handlePageChange"
+          >
+            <template #cell-caller="{ item: log }">
+              <div class="cursor-pointer" @click="viewDetail(log)">
+                <p class="font-medium">{{ log.contact?.profile_name || log.caller_phone }}</p>
+                <p v-if="log.contact?.profile_name" class="text-sm text-muted-foreground">{{ log.caller_phone }}</p>
+              </div>
+            </template>
+            <template #cell-direction="{ item: log }">
+              <span class="inline-flex items-center gap-1.5 text-muted-foreground">
+                <PhoneIncoming v-if="log.direction === 'incoming'" class="h-3.5 w-3.5" />
+                <PhoneOutgoing v-else class="h-3.5 w-3.5" />
+                {{ t(`calling.${log.direction}`) }}
+              </span>
+            </template>
+            <template #cell-status="{ item: log }">
+              <Badge :variant="statusVariant(log.status)">
+                <component :is="statusIcon(log.status)" class="h-3 w-3 mr-1" />
+                {{ t(`calling.${log.status}`) }}
+              </Badge>
+            </template>
+            <template #cell-duration="{ item: log }">
+              <span class="inline-flex items-center gap-1.5">
+                {{ formatDuration(log.duration) }}
+                <Mic v-if="log.recording_s3_key" class="h-3.5 w-3.5 text-muted-foreground" :title="t('calling.recording')" />
+              </span>
+            </template>
+            <template #cell-agent="{ item: log }">
+              <span v-if="log.agent" class="text-sm">{{ log.agent.full_name }}</span>
+              <span v-else class="text-muted-foreground">-</span>
+            </template>
+            <template #cell-disconnected_by="{ item: log }">
+              <Badge v-if="log.disconnected_by" :variant="disconnectedByVariant(log.disconnected_by)">
+                <component :is="disconnectedByIcon(log.disconnected_by)" class="h-3 w-3 mr-1" />
+                {{ t(`calling.disconnectedBy${log.disconnected_by.charAt(0).toUpperCase() + log.disconnected_by.slice(1)}`) }}
+              </Badge>
+              <span v-else class="text-muted-foreground">-</span>
+            </template>
+            <template #cell-ivr_flow="{ item: log }">
+              {{ log.ivr_flow?.name || '-' }}
+            </template>
+            <template #cell-whatsapp_account="{ item: log }">
+              {{ log.whatsapp_account }}
+            </template>
+            <template #cell-started_at="{ item: log }">
+              {{ formatDate(log.started_at || log.created_at) }}
+            </template>
+          </DataTable>
+        </CardContent>
 
+          </Card>
+    </div>
     <!-- Detail Dialog -->
     <Dialog v-model:open="showDetail">
       <DialogContent class="max-w-lg">

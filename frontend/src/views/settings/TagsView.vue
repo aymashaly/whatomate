@@ -124,8 +124,8 @@ function getColorLabel(color: string): string {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
-    <PageHeader :title="$t('tags.title')" :subtitle="$t('tags.subtitle')" :icon="Tags" icon-gradient="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20" back-link="/settings">
+  <div class="flex flex-col h-full">
+    <PageHeader :title="$t('tags.title')" :subtitle="$t('tags.subtitle')" :icon="Tags" icon-gradient="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20" back-link="/app/settings">
       <template #actions>
         <Button variant="outline" size="sm" @click="openCreateDialog"><Plus class="h-4 w-4 mr-2" />{{ $t('tags.addTag') }}</Button>
       </template>
@@ -144,59 +144,63 @@ function getColorLabel(color: string): string {
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div class="max-w-6xl mx-auto">
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle>{{ $t('tags.organizationTags') }}</CardTitle>
-                  <CardDescription>{{ $t('tags.organizationTagsDesc') }}</CardDescription>
-                </div>
-                <SearchInput v-model="searchQuery" :placeholder="$t('tags.searchTags') + '...'" class="w-64" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                :items="tags"
-                :columns="columns"
-                :is-loading="isLoading"
-                :empty-icon="Tags"
-                :empty-title="searchQuery ? $t('tags.noMatchingTags') : $t('tags.noTagsYet')"
-                :empty-description="searchQuery ? $t('tags.noMatchingTagsDesc') : $t('tags.noTagsYetDesc')"
-                v-model:sort-key="sortKey"
-                v-model:sort-direction="sortDirection"
-                server-pagination
-                :current-page="currentPage"
-                :total-items="totalItems"
-                :page-size="pageSize"
-                item-name="tags"
-                @page-change="handlePageChange"
-              >
-                <template #cell-name="{ item: tag }">
-                  <TagBadge :color="tag.color">{{ tag.name }}</TagBadge>
-                </template>
-                <template #cell-color="{ item: tag }">
-                  <span class="text-muted-foreground">{{ getColorLabel(tag.color) }}</span>
-                </template>
-                <template #cell-created_at="{ item: tag }">
-                  <span class="text-muted-foreground">{{ formatDate(tag.created_at) }}</span>
-                </template>
-                <template #cell-actions="{ item: tag }">
-                  <div class="flex items-center justify-end gap-1">
-                    <IconButton :icon="Pencil" :label="$t('tags.editTag')" class="h-8 w-8" @click="openEditDialog(tag)" />
-                    <IconButton :label="$t('tags.deleteTag')" class="h-8 w-8" @click="openDeleteDialog(tag)">
-                      <Trash2 class="h-4 w-4 text-destructive" />
-                    </IconButton>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>{{ $t('tags.organizationTags') }}</CardTitle>
+                    <CardDescription>{{ $t('tags.organizationTagsDesc') }}</CardDescription>
                   </div>
-                </template>
-                <template #empty-action>
-                  <Button variant="outline" size="sm" @click="openCreateDialog">
-                    <Plus class="h-4 w-4 mr-2" />
-                    {{ $t('tags.addTag') }}
-                  </Button>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                  <SearchInput v-model="searchQuery" :placeholder="$t('tags.searchTags') + '...'" class="w-64" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataTable
+                  :items="tags"
+                  :columns="columns"
+                  :is-loading="isLoading"
+                  :empty-icon="Tags"
+                  :empty-title="searchQuery ? $t('tags.noMatchingTags') : $t('tags.noTagsYet')"
+                  :empty-description="searchQuery ? $t('tags.noMatchingTagsDesc') : $t('tags.noTagsYetDesc')"
+                  v-model:sort-key="sortKey"
+                  v-model:sort-direction="sortDirection"
+                  server-pagination
+                  :current-page="currentPage"
+                  :total-items="totalItems"
+                  :page-size="pageSize"
+                  item-name="tags"
+                  @page-change="handlePageChange"
+                >
+                  <template #cell-name="{ item: tag }">
+                    <TagBadge :color="tag.color">{{ tag.name }}</TagBadge>
+                  </template>
+                  <template #cell-color="{ item: tag }">
+                    <span class="text-muted-foreground">{{ getColorLabel(tag.color) }}</span>
+                  </template>
+                  <template #cell-created_at="{ item: tag }">
+                    <span class="text-muted-foreground">{{ formatDate(tag.created_at) }}</span>
+                  </template>
+                  <template #cell-actions="{ item: tag }">
+                    <div class="flex items-center justify-end gap-1">
+                      <IconButton :icon="Pencil" :label="$t('tags.editTag')" class="h-8 w-8" @click="openEditDialog(tag)" />
+                      <IconButton :label="$t('tags.deleteTag')" class="h-8 w-8" @click="openDeleteDialog(tag)">
+                        <Trash2 class="h-4 w-4 text-destructive" />
+                      </IconButton>
+                    </div>
+                  </template>
+                  <template #empty-action>
+                    <Button variant="outline" size="sm" @click="openCreateDialog">
+                      <Plus class="h-4 w-4 mr-2" />
+                      {{ $t('tags.addTag') }}
+                    </Button>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

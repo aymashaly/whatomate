@@ -169,7 +169,7 @@ async function deleteContact() {
   try {
     await contactsService.delete(contact.value.id)
     toast.success(t('common.deletedSuccess', { resource: t('resources.Contact') }))
-    router.push('/settings/contacts')
+    router.push('/app/settings/contacts')
   } catch (e) {
     toast.error(getErrorMessage(e, t('common.failedDelete', { resource: t('resources.contact') })))
   }
@@ -233,7 +233,7 @@ onMounted(async () => {
       :title="contact?.profile_name || contact?.name || contact?.phone_number || ''"
       :icon="Users"
       icon-gradient="bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/20"
-      back-link="/settings/contacts"
+      back-link="/app/settings/contacts"
       :breadcrumbs="breadcrumbs"
       :is-loading="isLoading"
       :is-not-found="isNotFound"

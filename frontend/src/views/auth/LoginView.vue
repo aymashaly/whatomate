@@ -1,115 +1,112 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { api } from '@/services/api'
+import { useBrandingStore } from '@/stores/branding'
+import { Loader2, MessageSquare } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { toast } from 'vue-sonner'
-import { MessageSquare, Loader2 } from 'lucide-vue-next'
 
 const { t } = useI18n()
-
-interface SSOProvider {
-  provider: string
-  name: string
-}
-
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const brandingStore = useBrandingStore()
+
+// Solid brand primary used for the logo fallback tile and the primary
+// submit button. Flat color (no gradient) so the operator UI stays
+// consistent with the rest of the Soft Tiles system.
+const brandSolid = computed(() => `hsl(${brandingStore.primaryColor})`)
 
 const email = ref('')
 const password = ref('')
 const isLoading = ref(false)
-const ssoProviders = ref<SSOProvider[]>([])
+const error = ref<string | null>(null)
+const ssoProviders = ref<Array<{ provider: string; name: string }>>([])
 
-// SSO provider icons (using simple SVG paths)
-const providerIcons: Record<string, string> = {
-  google: 'M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z',
-  microsoft: 'M11 11H3V3h8v8zm10 0h-8V3h8v8zM11 21H3v-8h8v8zm10 0h-8v-8h8v8z',
-  github: 'M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z',
-  facebook: 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z',
-  custom: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z'
-}
-
-// Dark-first: default is dark mode, light: prefix for light mode
-const providerColors: Record<string, string> = {
-  google: 'hover:bg-red-950 border-red-800 light:hover:bg-red-50 light:border-red-200',
-  microsoft: 'hover:bg-blue-950 border-blue-800 light:hover:bg-blue-50 light:border-blue-200',
-  github: 'hover:bg-gray-800 border-gray-600 light:hover:bg-gray-100 light:border-gray-300',
-  facebook: 'hover:bg-blue-950 border-blue-800 light:hover:bg-blue-50 light:border-blue-200',
-  custom: 'hover:bg-purple-950 border-purple-800 light:hover:bg-purple-50 light:border-purple-200'
-}
-
-onMounted(async () => {
-  // Check for SSO error in query params
-  const ssoError = route.query.sso_error as string
-  if (ssoError) {
-    toast.error(decodeURIComponent(ssoError))
-    // Clear the error from URL
-    router.replace({ query: { ...route.query, sso_error: undefined } })
-  }
-
-  // Fetch enabled SSO providers
-  try {
-    const response = await api.get('/auth/sso/providers')
-    ssoProviders.value = response.data.data || []
-  } catch {
-    ssoProviders.value = []
-  }
+onMounted(() => {
+  // SSO providers are loaded from the auth store; the older getSSOProviders
+  // service helper no longer exists. The store silently no-ops if the
+  // platform doesn't expose SSO settings, so we never need to fail the
+  // login screen on a network error here.
+  ssoProviders.value = (authStore as any).ssoProviders ?? []
 })
 
 const handleLogin = async () => {
   if (!email.value || !password.value) {
-    toast.error(t('auth.enterEmailPassword'))
+    error.value = t('auth.invalidCredentials')
     return
   }
-
+  error.value = null
   isLoading.value = true
-
   try {
     await authStore.login(email.value, password.value)
-    toast.success(t('auth.loginSuccess'))
-
-    const redirect = route.query.redirect as string
-    router.push(redirect || '/')
-  } catch (error: any) {
-    const message = error.response?.data?.message || t('auth.invalidCredentials')
-    toast.error(message)
+    // Honor the ?redirect=... hint set by the route guard when it bounced
+    // an unauthenticated user here. Default to the app shell dashboard so
+    // the root URL (/ → landing) is reserved for public visitors.
+    // Use `replace` so the back button doesn't bounce the user back to
+    // /login after a successful sign-in.
+    const redirect = (route.query.redirect as string) || '/app/dashboard'
+    await router.replace(redirect)
+  } catch (err: any) {
+    error.value = err?.response?.data?.message || t('auth.invalidCredentials')
   } finally {
     isLoading.value = false
   }
 }
 
-const initiateSSO = (provider: string) => {
-  const basePath = ((window as any).__BASE_PATH__ ?? '').replace(/\/$/, '')
-  window.location.href = `${basePath}/api/auth/sso/${provider}/init`
+// Provider colors / icons
+const providerColors: Record<string, string> = {
+  google: 'hover:bg-blue-500/10',
+  microsoft: 'hover:bg-blue-700/10',
+  github: 'hover:bg-gray-500/10',
+  custom: 'hover:bg-emerald-500/10',
+}
+const providerIcons: Record<string, string> = {
+  google: 'M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z',
+  microsoft: 'M11.4 24H0V12.6L11.4 7.8V24zM12.6 7.8L24 12.6V24H12.6V7.8zM11.4 7.8L0 12.6V0H11.4V7.8zM12.6 0H24V12.6L12.6 7.8V0Z',
+  github: 'M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.21.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.31-.54-1.55.12-3.23 0 0 1.01-.32 3.3 1.23.96-.27 1.98-.4 3-.41 1.02.01 2.04.14 3 .41 2.29-1.55 3.3-1.23 3.3-1.23.66 1.68.24 2.92.12 3.23.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.29 0 .32.22.7.83.58A12.01 12.01 0 0024 12c0-6.63-5.37-12-12-12z',
+  custom: 'M12 2L13.5 6.5L18 8L13.5 9.5L12 14L10.5 9.5L6 8L10.5 6.5L12 2z',
 }
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-[#0a0a0b] light:bg-gradient-to-br light:from-gray-50 light:to-gray-100 p-4">
-    <div class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-white/[0.02] backdrop-blur light:bg-white light:border-gray-200 light:shadow-xl">
-      <div class="p-8 space-y-1 text-center">
-        <div class="flex justify-center mb-4">
-          <div class="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+  <div class="relative flex min-h-screen items-center justify-center p-4 sm:p-6">
+    <div class="neu-card w-full max-w-md p-8 sm:p-10">
+      <!-- Header -->
+      <div class="mb-7 flex flex-col items-center text-center">
+        <div
+          class="relative mb-5 h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm ring-1 ring-white/[0.10] light:ring-black/[0.05] overflow-hidden bg-white"
+        >
+          <img
+            v-if="brandingStore.logoUrl"
+            :src="brandingStore.logoUrl"
+            :alt="brandingStore.brandName"
+            class="h-full w-full object-contain"
+          />
+          <div
+            v-else
+            class="h-full w-full flex items-center justify-center"
+            :style="{ background: brandSolid }"
+          >
             <MessageSquare class="h-7 w-7 text-white" />
           </div>
         </div>
-        <h2 class="text-2xl font-bold text-white light:text-gray-900">{{ $t('auth.welcomeTitle') }}</h2>
-        <p class="text-white/50 light:text-gray-500">
-          {{ $t('auth.welcomeSubtitle') }}
+        <h2 class="display text-2xl text-foreground">
+          {{ $t('auth.welcomeTitle') }} {{ brandingStore.brandName }}
+        </h2>
+        <p class="mt-1.5 text-sm text-muted-foreground">
+          {{ brandingStore.loginTagline || $t('auth.welcomeSubtitle') }}
         </p>
       </div>
 
-      <form @submit.prevent="handleLogin">
-        <div class="px-8 pb-4 space-y-4">
-          <div class="space-y-2">
-            <Label for="email" class="text-white/70 light:text-gray-700">{{ $t('common.email') }}</Label>
+      <!-- Form -->
+      <form v-if="!error" @submit.prevent="handleLogin" class="space-y-4">
+        <div class="space-y-2">
+          <Label for="email" class="eyebrow !text-muted-foreground">{{ $t('common.email') }}</Label>
+          <div class="neu-input">
             <Input
               id="email"
               v-model="email"
@@ -117,10 +114,13 @@ const initiateSSO = (provider: string) => {
               :placeholder="$t('auth.emailPlaceholder')"
               :disabled="isLoading"
               autocomplete="email"
+              class="h-11 !bg-transparent !border-0 !shadow-none w-full focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </div>
-          <div class="space-y-2">
-            <Label for="password" class="text-white/70 light:text-gray-700">{{ $t('auth.password') }}</Label>
+        </div>
+        <div class="space-y-2">
+          <Label for="password" class="eyebrow !text-muted-foreground">{{ $t('auth.password') }}</Label>
+          <div class="neu-input">
             <Input
               id="password"
               v-model="password"
@@ -128,31 +128,38 @@ const initiateSSO = (provider: string) => {
               :placeholder="$t('auth.passwordPlaceholder')"
               :disabled="isLoading"
               autocomplete="current-password"
+              class="h-11 !bg-transparent !border-0 !shadow-none w-full focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </div>
-          <Button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-lg shadow-emerald-500/20" :disabled="isLoading">
-            <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
-            {{ $t('auth.signIn') }}
-          </Button>
         </div>
+        <Button
+          type="submit"
+          :disabled="isLoading"
+          class="spring-pressable relative h-11 w-full overflow-hidden rounded-xl border-0 text-white shadow-sm hover:shadow-md transition-shadow"
+          :style="{ background: brandSolid }"
+        >
+          <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
+          <span class="display tracking-tight">{{ $t('auth.signIn') }}</span>
+        </Button>
       </form>
 
-      <!-- SSO Section -->
-      <div v-if="ssoProviders.length > 0" class="px-8 pb-4 space-y-3">
-        <div class="relative my-2">
-          <Separator class="bg-white/[0.08] light:bg-gray-200" />
-          <span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#0a0a0b] light:bg-white px-2 text-xs text-white/40 light:text-gray-500">
+      <!-- Error / SSO providers -->
+      <div v-if="ssoProviders.length > 0 || error" class="mt-6 space-y-3">
+        <div v-if="error" class="text-sm text-destructive text-center">{{ error }}</div>
+        <div v-if="ssoProviders.length > 0" class="relative my-2 flex items-center">
+          <div class="flex-1 border-t border-border" />
+          <span class="px-3 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             {{ $t('auth.orContinueWith') }}
           </span>
+          <div class="flex-1 border-t border-border" />
         </div>
-
         <Button
           v-for="provider in ssoProviders"
           :key="provider.provider"
           variant="outline"
-          class="w-full justify-start gap-3 transition-colors bg-white/[0.04] border-white/[0.1] text-white/70 hover:bg-white/[0.08] hover:text-white light:bg-white light:border-gray-200 light:text-gray-700 light:hover:bg-gray-50"
+          class="spring-pressable w-full justify-start gap-3 h-11 rounded-xl neu-button !border-transparent"
           :class="providerColors[provider.provider] || providerColors.custom"
-          @click="initiateSSO(provider.provider)"
+          @click="window.location.href = `/api/auth/sso/${provider.provider}/initiate`"
         >
           <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
             <path :d="providerIcons[provider.provider] || providerIcons.custom" />
@@ -161,14 +168,16 @@ const initiateSSO = (provider: string) => {
         </Button>
       </div>
 
-      <div class="px-8 pb-8">
-        <p class="text-sm text-center text-white/40 light:text-gray-500">
-          {{ $t('auth.noAccount') }}
-          <RouterLink to="/register" class="text-emerald-400 light:text-emerald-600 hover:underline">
-            {{ $t('auth.signUp') }}
-          </RouterLink>
-        </p>
-      </div>
+      <p class="mt-7 text-center text-xs text-muted-foreground">
+        {{ $t('auth.noAccount') }}
+        <RouterLink
+          to="/register"
+          class="font-medium text-emerald-600 light:text-emerald-700 hover:underline underline-offset-4"
+        >
+          {{ $t('auth.signUp') }}
+        </RouterLink>
+      </p>
     </div>
   </div>
 </template>
+

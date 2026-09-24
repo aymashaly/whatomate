@@ -295,7 +295,7 @@ function getHeaderIcon(type: string) {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
+  <div class="flex flex-col h-full">
     <PageHeader :title="$t('templates.title')" :subtitle="$t('templates.subtitle')" :icon="FileText" icon-gradient="bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/20">
       <template #actions>
         <Button variant="outline" size="sm" @click="syncTemplates" :disabled="isSyncing || !selectedAccount || selectedAccount === 'all'">
@@ -303,7 +303,7 @@ function getHeaderIcon(type: string) {
           <RefreshCw v-else class="h-4 w-4 mr-2" />
           {{ $t('templates.syncFromMeta') }}
         </Button>
-        <RouterLink to="/templates/new">
+        <RouterLink to="/app/templates/new">
           <Button variant="outline" size="sm">
             <Plus class="h-4 w-4 mr-2" />
             {{ $t('templates.createTemplate') }}
@@ -322,8 +322,10 @@ function getHeaderIcon(type: string) {
             :retry-label="$t('common.retry')"
             @retry="fetchTemplates"
           />
-          <Card v-else>
-            <CardHeader>
+          <div v-else class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+            <CardHeader class="ios-card-header rounded-t-[1.25rem] border-b-0">
               <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <CardTitle>{{ $t('templates.yourTemplates') }}</CardTitle>
@@ -366,7 +368,7 @@ function getHeaderIcon(type: string) {
                 v-model:sort-direction="sortDirection"
               >
                 <template #cell-name="{ item: template }">
-                  <RouterLink :to="`/templates/${template.id}`" class="text-inherit no-underline hover:opacity-80">
+                  <RouterLink :to="`/app/templates/${template.id}`" class="text-inherit no-underline hover:opacity-80">
                     <span class="font-medium">{{ template.display_name || template.name }}</span>
                     <p class="text-xs font-mono text-muted-foreground">{{ template.name }}</p>
                   </RouterLink>
@@ -398,7 +400,7 @@ function getHeaderIcon(type: string) {
                 </template>
                 <template #cell-actions="{ item: template }">
                   <div class="flex items-center justify-end gap-1">
-                    <RouterLink :to="`/templates/${template.id}`">
+                    <RouterLink :to="`/app/templates/${template.id}`">
                       <IconButton
                         :icon="Pencil"
                         :label="$t('common.edit')"
@@ -419,7 +421,7 @@ function getHeaderIcon(type: string) {
                       <RefreshCw class="h-4 w-4 mr-2" />
                       {{ $t('templates.syncFromMeta') }}
                     </Button>
-                    <RouterLink to="/templates/new">
+                    <RouterLink to="/app/templates/new">
                       <Button variant="outline" size="sm">
                         <Plus class="h-4 w-4 mr-2" />
                         {{ $t('templates.createTemplate') }}
@@ -429,7 +431,8 @@ function getHeaderIcon(type: string) {
                 </template>
               </DataTable>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

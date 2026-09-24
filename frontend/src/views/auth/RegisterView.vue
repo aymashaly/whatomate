@@ -21,11 +21,35 @@ const password = ref('')
 const confirmPassword = ref('')
 const isLoading = ref(false)
 
+/**
+ * The ?org=<uuid> query parameter is what links the invitation to the
+ * organization the new user is joining. It must be a valid UUID —
+ * otherwise the backend `uuid.UUID` UnmarshalJSON rejects the JSON
+ * payload and the user sees "Invalid request body".
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const organizationId = computed(() => (route.query.org as string) || '')
 
+const organizationIdIsValid = computed(() => UUID_RE.test(organizationId.value))
+
+const invitationProblem = computed(() => {
+  const v = organizationId.value
+  if (!v) return t('auth.invitationRequired')
+  if (!UUID_RE.test(v)) return t('auth.invitationInvalid')
+  return ''
+})
+
 const handleRegister = async () => {
+  // Guard: a missing or malformed invitation means the user reached this
+  // page without a usable ?org=… parameter. Show a clear message instead
+  // of letting the request fail with a generic decode error.
   if (!organizationId.value) {
     toast.error(t('auth.invitationRequired'))
+    return
+  }
+  if (!UUID_RE.test(organizationId.value)) {
+    toast.error(t('auth.invitationInvalid'))
     return
   }
 
@@ -54,7 +78,7 @@ const handleRegister = async () => {
       organization_id: organizationId.value
     })
     toast.success(t('auth.registrationSuccess'))
-    router.push('/')
+    router.push('/app/dashboard')
   } catch (error: any) {
     const message = error.response?.data?.message || t('auth.registrationFailed')
     toast.error(message)
@@ -80,11 +104,14 @@ const handleRegister = async () => {
       </CardHeader>
 
       <!-- No org ID in URL — show invitation required message -->
-      <template v-if="!organizationId">
+      <template v-if="!organizationIdIsValid">
         <CardContent>
-          <div class="text-center py-4">
-            <p class="text-sm text-muted-foreground">
-              {{ $t('auth.invitationRequired') }}
+          <div class="text-center py-4 space-y-2">
+            <p class="text-sm font-medium text-foreground">
+              {{ invitationProblem }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {{ $t('auth.invitationHelp') }}
             </p>
           </div>
         </CardContent>

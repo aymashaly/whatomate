@@ -124,42 +124,46 @@ onMounted(() => {
       </TabsList>
 
       <TabsContent value="waiting" class="mt-4">
-        <Card>
-          <CardContent class="pt-6">
-            <DataTable
-              :items="store.waitingTransfers"
-              :columns="waitingColumns"
-              :is-loading="false"
-              :empty-icon="PhoneForwarded"
-              :empty-title="t('callTransfers.noWaiting')"
-            >
-              <template #cell-caller_phone="{ item: transfer }">
-                <div class="flex items-center gap-2">
-                  <Phone class="h-4 w-4 text-green-400" />
-                  <span>{{ transfer.contact?.profile_name || transfer.caller_phone }}</span>
-                </div>
-              </template>
-              <template #cell-status>
-                <Badge variant="default" class="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">
-                  {{ t('callTransfers.waiting') }}
-                </Badge>
-              </template>
-              <template #cell-transferred_at="{ item: transfer }">
-                {{ formatDate(transfer.transferred_at) }}
-              </template>
-              <template #cell-actions="{ item: transfer }">
-                <Button
-                  size="sm"
-                  class="bg-green-600 hover:bg-green-500 text-white"
-                  @click="handleAccept(transfer.id)"
-                >
-                  <Phone class="h-3.5 w-3.5 mr-1" />
-                  {{ t('callTransfers.accept') }}
-                </Button>
-              </template>
-            </DataTable>
-          </CardContent>
-        </Card>
+        <div class="ios-card relative overflow-hidden">
+          <div class="ios-edge-glow" aria-hidden="true" />
+          <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+            <CardContent class="pt-6">
+              <DataTable
+                :items="store.waitingTransfers"
+                :columns="waitingColumns"
+                :is-loading="false"
+                :empty-icon="PhoneForwarded"
+                :empty-title="t('callTransfers.noWaiting')"
+              >
+                <template #cell-caller_phone="{ item: transfer }">
+                  <div class="flex items-center gap-2">
+                    <Phone class="h-4 w-4 text-green-400" />
+                    <span>{{ transfer.contact?.profile_name || transfer.caller_phone }}</span>
+                  </div>
+                </template>
+                <template #cell-status>
+                  <Badge variant="default" class="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">
+                    {{ t('callTransfers.waiting') }}
+                  </Badge>
+                </template>
+                <template #cell-transferred_at="{ item: transfer }">
+                  {{ formatDate(transfer.transferred_at) }}
+                </template>
+                <template #cell-actions="{ item: transfer }">
+                  <Button
+                    size="sm"
+                    class="bg-green-600 hover:bg-green-500 text-white"
+                    @click="handleAccept(transfer.id)"
+                  >
+                    <Phone class="h-3.5 w-3.5 mr-1" />
+                    {{ t('callTransfers.accept') }}
+                  </Button>
+                </template>
+              </DataTable>
+            </CardContent>
+
+                  </Card>
+        </div>
       </TabsContent>
 
       <TabsContent value="history" class="mt-4">
@@ -170,48 +174,52 @@ onMounted(() => {
           :retry-label="$t('common.retry')"
           @retry="fetchHistory"
         />
-        <Card v-else>
-          <CardContent class="pt-6">
-            <DataTable
-              :items="historyTransfers"
-              :columns="historyColumns"
-              :is-loading="historyLoading"
-              :empty-icon="Clock"
-              :empty-title="t('common.noResults')"
-              server-pagination
-              :current-page="historyPage"
-              :total-items="historyTotal"
-              :page-size="pageSize"
-              item-name="transfers"
-              max-height="calc(100vh - 320px)"
-              @page-change="handleHistoryPageChange"
-            >
-              <template #cell-caller_phone="{ item: transfer }">
-                <div class="flex items-center gap-2">
-                  <component :is="transfer.status === 'completed' ? Phone : PhoneOff"
-                    class="h-4 w-4"
-                    :class="transfer.status === 'completed' ? 'text-green-400' : 'text-red-400'"
-                  />
-                  <span>{{ transfer.contact?.profile_name || transfer.caller_phone }}</span>
-                </div>
-              </template>
-              <template #cell-status="{ item: transfer }">
-                <Badge :variant="statusVariant(transfer.status)">
-                  {{ transfer.status }}
-                </Badge>
-              </template>
-              <template #cell-hold_duration="{ item: transfer }">
-                {{ formatDuration(transfer.hold_duration) }}
-              </template>
-              <template #cell-talk_duration="{ item: transfer }">
-                {{ formatDuration(transfer.talk_duration) }}
-              </template>
-              <template #cell-transferred_at="{ item: transfer }">
-                {{ formatDate(transfer.transferred_at) }}
-              </template>
-            </DataTable>
-          </CardContent>
-        </Card>
+        <div v-else class="ios-card relative overflow-hidden">
+          <div class="ios-edge-glow" aria-hidden="true" />
+          <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+            <CardContent class="pt-6">
+              <DataTable
+                :items="historyTransfers"
+                :columns="historyColumns"
+                :is-loading="historyLoading"
+                :empty-icon="Clock"
+                :empty-title="t('common.noResults')"
+                server-pagination
+                :current-page="historyPage"
+                :total-items="historyTotal"
+                :page-size="pageSize"
+                item-name="transfers"
+                max-height="calc(100vh - 320px)"
+                @page-change="handleHistoryPageChange"
+              >
+                <template #cell-caller_phone="{ item: transfer }">
+                  <div class="flex items-center gap-2">
+                    <component :is="transfer.status === 'completed' ? Phone : PhoneOff"
+                      class="h-4 w-4"
+                      :class="transfer.status === 'completed' ? 'text-green-400' : 'text-red-400'"
+                    />
+                    <span>{{ transfer.contact?.profile_name || transfer.caller_phone }}</span>
+                  </div>
+                </template>
+                <template #cell-status="{ item: transfer }">
+                  <Badge :variant="statusVariant(transfer.status)">
+                    {{ transfer.status }}
+                  </Badge>
+                </template>
+                <template #cell-hold_duration="{ item: transfer }">
+                  {{ formatDuration(transfer.hold_duration) }}
+                </template>
+                <template #cell-talk_duration="{ item: transfer }">
+                  {{ formatDuration(transfer.talk_duration) }}
+                </template>
+                <template #cell-transferred_at="{ item: transfer }">
+                  {{ formatDate(transfer.transferred_at) }}
+                </template>
+              </DataTable>
+            </CardContent>
+
+                  </Card>
+        </div>
       </TabsContent>
     </Tabs>
   </div>

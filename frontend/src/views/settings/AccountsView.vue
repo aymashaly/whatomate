@@ -252,12 +252,12 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
+  <div class="flex flex-col h-full">
     <PageHeader
       :title="$t('accounts.title')"
       :icon="Phone"
       icon-gradient="bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-500/20"
-      back-link="/settings"
+      back-link="/app/settings"
       :breadcrumbs="breadcrumbs"
     >
       <template #actions>
@@ -273,7 +273,7 @@ async function confirmDelete() {
             <Facebook v-else class="h-4 w-4 mr-2" />
             {{ $t('accounts.connectFacebook') }}
           </Button>
-          <RouterLink to="/settings/accounts/new">
+          <RouterLink to="/app/settings/accounts/new">
             <Button variant="outline" size="sm">
               <Plus class="h-4 w-4 mr-2" />
               {{ $t('accounts.addAccount') }}
@@ -295,105 +295,109 @@ async function confirmDelete() {
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div>
-          <Card>
-            <CardHeader>
-              <div>
-                <CardTitle>{{ $t('accounts.yourAccounts') }}</CardTitle>
-                <CardDescription>{{ $t('accounts.yourAccountsDesc') }}</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                :items="accounts"
-                :columns="columns"
-                :is-loading="isLoading"
-                :empty-icon="Phone"
-                :empty-title="$t('accounts.noAccounts')"
-                :empty-description="$t('accounts.noAccountsDesc')"
-                v-model:sort-key="sortKey"
-                v-model:sort-direction="sortDirection"
-                item-name="accounts"
-              >
-                <template #empty-action>
-                  <div v-if="canWrite" class="flex gap-3 justify-center">
-                    <Button
-                      v-if="whatsappConfig?.app_id && whatsappConfig?.config_id"
-                      size="lg"
-                      @click="showOnboardingDialog = true"
-                      :disabled="isConnectingFB || !isFBSDKLoaded"
-                      class="bg-gradient-to-br from-facebook to-facebook-dark hover:from-facebook-hover hover:to-facebook-hoverDark text-white border-none shadow-none"
-                    >
-                      <Facebook v-if="!isConnectingFB" class="mr-2 h-5 w-5" />
-                      <Loader2 v-else class="mr-2 h-5 w-5 animate-spin" />
-                      {{ $t('accounts.connectFacebook') }}
-                    </Button>
-                    <RouterLink to="/settings/accounts/new">
-                      <Button variant="outline" size="lg">
-                        <Plus class="mr-2 h-5 w-5" />
-                        {{ $t('accounts.addAccount') }}
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div>
+                  <CardTitle>{{ $t('accounts.yourAccounts') }}</CardTitle>
+                  <CardDescription>{{ $t('accounts.yourAccountsDesc') }}</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataTable
+                  :items="accounts"
+                  :columns="columns"
+                  :is-loading="isLoading"
+                  :empty-icon="Phone"
+                  :empty-title="$t('accounts.noAccounts')"
+                  :empty-description="$t('accounts.noAccountsDesc')"
+                  v-model:sort-key="sortKey"
+                  v-model:sort-direction="sortDirection"
+                  item-name="accounts"
+                >
+                  <template #empty-action>
+                    <div v-if="canWrite" class="flex gap-3 justify-center">
+                      <Button
+                        v-if="whatsappConfig?.app_id && whatsappConfig?.config_id"
+                        size="lg"
+                        @click="showOnboardingDialog = true"
+                        :disabled="isConnectingFB || !isFBSDKLoaded"
+                        class="bg-gradient-to-br from-facebook to-facebook-dark hover:from-facebook-hover hover:to-facebook-hoverDark text-white border-none shadow-none"
+                      >
+                        <Facebook v-if="!isConnectingFB" class="mr-2 h-5 w-5" />
+                        <Loader2 v-else class="mr-2 h-5 w-5 animate-spin" />
+                        {{ $t('accounts.connectFacebook') }}
                       </Button>
-                    </RouterLink>
-                  </div>
-                </template>
-                <template #cell-account="{ item: account }">
-                  <RouterLink :to="`/settings/accounts/${account.id}`" class="flex items-center gap-3 text-inherit no-underline hover:opacity-80">
-                    <div class="h-9 w-9 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
-                      <Phone class="h-4 w-4 text-emerald-500" />
-                    </div>
-                    <p class="font-medium truncate">{{ account.name }}</p>
-                  </RouterLink>
-                </template>
-                <template #cell-app_id="{ item: account }">
-                  <code v-if="account.app_id" class="text-xs bg-muted px-1.5 py-0.5 rounded">{{ account.app_id }}</code>
-                  <span v-else class="text-muted-foreground">—</span>
-                </template>
-                <template #cell-phone_id="{ item: account }">
-                  <code class="text-xs bg-muted px-1.5 py-0.5 rounded">{{ account.phone_id }}</code>
-                </template>
-                <template #cell-api_version="{ item: account }">
-                  <span class="text-sm">{{ account.api_version }}</span>
-                </template>
-                <template #cell-defaults="{ item: account }">
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    <Badge v-if="account.is_default_incoming" variant="outline" class="text-[10px]">
-                      <Check class="h-2.5 w-2.5 mr-0.5" /> {{ $t('accounts.incoming') }}
-                    </Badge>
-                    <Badge v-if="account.is_default_outgoing" variant="outline" class="text-[10px]">
-                      <Check class="h-2.5 w-2.5 mr-0.5" /> {{ $t('accounts.outgoing') }}
-                    </Badge>
-                  </div>
-                </template>
-                <template #cell-status="{ item: account }">
-                  <Badge variant="outline" :class="account.status === 'active' ? 'border-green-600 text-green-600' : ''">
-                    {{ account.status }}
-                  </Badge>
-                </template>
-                <template #cell-created="{ item: account }">
-                  <span class="text-muted-foreground">{{ formatDate(account.created_at) }}</span>
-                </template>
-                <template #cell-actions="{ item: account }">
-                  <div class="flex items-center justify-end gap-1">
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <RouterLink :to="`/settings/accounts/${account.id}`">
-                          <Button variant="ghost" size="icon" class="h-8 w-8"><Pencil class="h-4 w-4" /></Button>
-                        </RouterLink>
-                      </TooltipTrigger>
-                      <TooltipContent>{{ $t('common.edit') }}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip v-if="canDelete">
-                      <TooltipTrigger as-child>
-                        <Button variant="ghost" size="icon" class="h-8 w-8" @click="openDeleteDialog(account)">
-                          <Trash2 class="h-4 w-4 text-destructive" />
+                      <RouterLink to="/app/settings/accounts/new">
+                        <Button variant="outline" size="lg">
+                          <Plus class="mr-2 h-5 w-5" />
+                          {{ $t('accounts.addAccount') }}
                         </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{{ $t('common.delete') }}</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                      </RouterLink>
+                    </div>
+                  </template>
+                  <template #cell-account="{ item: account }">
+                    <RouterLink :to="`/app/settings/accounts/${account.id}`" class="flex items-center gap-3 text-inherit no-underline hover:opacity-80">
+                      <div class="h-9 w-9 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                        <Phone class="h-4 w-4 text-emerald-500" />
+                      </div>
+                      <p class="font-medium truncate">{{ account.name }}</p>
+                    </RouterLink>
+                  </template>
+                  <template #cell-app_id="{ item: account }">
+                    <code v-if="account.app_id" class="text-xs bg-muted px-1.5 py-0.5 rounded">{{ account.app_id }}</code>
+                    <span v-else class="text-muted-foreground">—</span>
+                  </template>
+                  <template #cell-phone_id="{ item: account }">
+                    <code class="text-xs bg-muted px-1.5 py-0.5 rounded">{{ account.phone_id }}</code>
+                  </template>
+                  <template #cell-api_version="{ item: account }">
+                    <span class="text-sm">{{ account.api_version }}</span>
+                  </template>
+                  <template #cell-defaults="{ item: account }">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <Badge v-if="account.is_default_incoming" variant="outline" class="text-[10px]">
+                        <Check class="h-2.5 w-2.5 mr-0.5" /> {{ $t('accounts.incoming') }}
+                      </Badge>
+                      <Badge v-if="account.is_default_outgoing" variant="outline" class="text-[10px]">
+                        <Check class="h-2.5 w-2.5 mr-0.5" /> {{ $t('accounts.outgoing') }}
+                      </Badge>
+                    </div>
+                  </template>
+                  <template #cell-status="{ item: account }">
+                    <Badge variant="outline" :class="account.status === 'active' ? 'border-green-600 text-green-600' : ''">
+                      {{ account.status }}
+                    </Badge>
+                  </template>
+                  <template #cell-created="{ item: account }">
+                    <span class="text-muted-foreground">{{ formatDate(account.created_at) }}</span>
+                  </template>
+                  <template #cell-actions="{ item: account }">
+                    <div class="flex items-center justify-end gap-1">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <RouterLink :to="`/app/settings/accounts/${account.id}`">
+                            <Button variant="ghost" size="icon" class="h-8 w-8"><Pencil class="h-4 w-4" /></Button>
+                          </RouterLink>
+                        </TooltipTrigger>
+                        <TooltipContent>{{ $t('common.edit') }}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip v-if="canDelete">
+                        <TooltipTrigger as-child>
+                          <Button variant="ghost" size="icon" class="h-8 w-8" @click="openDeleteDialog(account)">
+                            <Trash2 class="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{{ $t('common.delete') }}</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

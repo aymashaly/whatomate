@@ -164,7 +164,7 @@ async function save() {
       const created = (response.data as any).data?.rule || (response.data as any).data || response.data
       hasChanges.value = false
       toast.success(t('common.createdSuccess', { resource: t('resources.KeywordRule', 'Keyword Rule') }))
-      router.replace(`/chatbot/keywords/${created.id}`)
+      router.replace(`/app/chatbot/keywords/${created.id}`)
     } else {
       await chatbotService.updateKeyword(keyword.value!.id, data)
       await loadKeyword()
@@ -186,7 +186,7 @@ async function deleteKeyword() {
   try {
     await chatbotService.deleteKeyword(keyword.value.id)
     toast.success(t('common.deletedSuccess', { resource: t('resources.KeywordRule', 'Keyword Rule') }))
-    router.push('/chatbot/keywords')
+    router.push('/app/chatbot/keywords')
   } catch (error: any) {
     toast.error(getErrorMessage(error, t('common.failedDelete', { resource: t('resources.keywordRule', 'keyword rule') })))
   }
@@ -209,7 +209,7 @@ onMounted(async () => {
     :title="isNew ? $t('keywords.newKeyword', 'New Keyword Rule') : (keyword?.name || form.keywords.split(',')[0]?.trim() || '')"
     :icon="Key"
     icon-gradient="bg-gradient-to-br from-yellow-500 to-orange-600 shadow-yellow-500/20"
-    back-link="/chatbot/keywords"
+    back-link="/app/chatbot/keywords"
     :breadcrumbs="breadcrumbs"
     :is-loading="isLoading"
     :is-not-found="isNotFound"

@@ -188,7 +188,7 @@ onMounted(() => fetchActions())
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
+  <div class="flex flex-col h-full">
     <PageHeader :title="$t('customActions.title')" :subtitle="$t('customActions.subtitle')" :icon="Zap" icon-gradient="bg-gradient-to-br from-yellow-500 to-orange-600 shadow-yellow-500/20">
       <template #actions>
         <Button variant="outline" size="sm" @click="openCreateDialog"><Plus class="h-4 w-4 mr-2" />{{ $t('customActions.addAction') }}</Button>
@@ -207,38 +207,42 @@ onMounted(() => fetchActions())
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div class="max-w-6xl mx-auto">
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle>{{ $t('customActions.yourActions') }}</CardTitle>
-                  <CardDescription>{{ $t('customActions.yourActionsDesc') }}</CardDescription>
-                </div>
-                <SearchInput v-model="searchQuery" :placeholder="$t('customActions.searchActions') + '...'" class="w-64" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable :items="actions" :columns="columns" :is-loading="isLoading" :empty-icon="Zap" :empty-title="searchQuery ? $t('customActions.noMatchingActions') : $t('customActions.noActionsYet')" :empty-description="searchQuery ? $t('customActions.noMatchingActionsDesc') : $t('customActions.noActionsYetDesc')" v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" server-pagination :current-page="currentPage" :total-items="totalItems" :page-size="pageSize" item-name="actions" @page-change="handlePageChange">
-                <template #cell-icon="{ item: action }"><component :is="getIconComponent(action.icon)" class="h-5 w-5 text-muted-foreground" /></template>
-                <template #cell-name="{ item: action }"><span class="font-medium">{{ action.name }}</span></template>
-                <template #cell-type="{ item: action }"><Badge :variant="getActionTypeBadge(action.action_type).variant">{{ getActionTypeBadge(action.action_type).label }}</Badge></template>
-                <template #cell-target="{ item: action }"><span class="max-w-[200px] truncate text-muted-foreground block">{{ action.action_type === 'javascript' ? $t('customActions.customScript') : action.config.url }}</span></template>
-                <template #cell-status="{ item: action }">
-                  <div class="flex items-center gap-2"><Switch :checked="action.is_active" @update:checked="handleToggleAction(action)" /><span class="text-sm text-muted-foreground">{{ action.is_active ? $t('common.active') : $t('common.inactive') }}</span></div>
-                </template>
-                <template #cell-created="{ item: action }"><span class="text-muted-foreground">{{ formatDate(action.created_at) }}</span></template>
-                <template #cell-actions="{ item: action }">
-                  <div class="flex items-center justify-end gap-1">
-                    <IconButton :icon="Pencil" :label="$t('common.edit')" class="h-8 w-8" @click="openEditDialog(action)" />
-                    <IconButton :icon="Trash2" :label="$t('common.delete')" class="h-8 w-8 text-destructive" @click="actionToDelete = action; isDeleteDialogOpen = true" />
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>{{ $t('customActions.yourActions') }}</CardTitle>
+                    <CardDescription>{{ $t('customActions.yourActionsDesc') }}</CardDescription>
                   </div>
-                </template>
-                <template #empty-action>
-                  <Button variant="outline" size="sm" @click="openCreateDialog"><Plus class="h-4 w-4 mr-2" />{{ $t('customActions.addAction') }}</Button>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                  <SearchInput v-model="searchQuery" :placeholder="$t('customActions.searchActions') + '...'" class="w-64" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataTable :items="actions" :columns="columns" :is-loading="isLoading" :empty-icon="Zap" :empty-title="searchQuery ? $t('customActions.noMatchingActions') : $t('customActions.noActionsYet')" :empty-description="searchQuery ? $t('customActions.noMatchingActionsDesc') : $t('customActions.noActionsYetDesc')" v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" server-pagination :current-page="currentPage" :total-items="totalItems" :page-size="pageSize" item-name="actions" @page-change="handlePageChange">
+                  <template #cell-icon="{ item: action }"><component :is="getIconComponent(action.icon)" class="h-5 w-5 text-muted-foreground" /></template>
+                  <template #cell-name="{ item: action }"><span class="font-medium">{{ action.name }}</span></template>
+                  <template #cell-type="{ item: action }"><Badge :variant="getActionTypeBadge(action.action_type).variant">{{ getActionTypeBadge(action.action_type).label }}</Badge></template>
+                  <template #cell-target="{ item: action }"><span class="max-w-[200px] truncate text-muted-foreground block">{{ action.action_type === 'javascript' ? $t('customActions.customScript') : action.config.url }}</span></template>
+                  <template #cell-status="{ item: action }">
+                    <div class="flex items-center gap-2"><Switch :checked="action.is_active" @update:checked="handleToggleAction(action)" /><span class="text-sm text-muted-foreground">{{ action.is_active ? $t('common.active') : $t('common.inactive') }}</span></div>
+                  </template>
+                  <template #cell-created="{ item: action }"><span class="text-muted-foreground">{{ formatDate(action.created_at) }}</span></template>
+                  <template #cell-actions="{ item: action }">
+                    <div class="flex items-center justify-end gap-1">
+                      <IconButton :icon="Pencil" :label="$t('common.edit')" class="h-8 w-8" @click="openEditDialog(action)" />
+                      <IconButton :icon="Trash2" :label="$t('common.delete')" class="h-8 w-8 text-destructive" @click="actionToDelete = action; isDeleteDialogOpen = true" />
+                    </div>
+                  </template>
+                  <template #empty-action>
+                    <Button variant="outline" size="sm" @click="openCreateDialog"><Plus class="h-4 w-4 mr-2" />{{ $t('customActions.addAction') }}</Button>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

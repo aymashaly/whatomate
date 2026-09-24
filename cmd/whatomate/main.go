@@ -529,6 +529,18 @@ func setupRoutes(g *fastglue.Fastglue, app *handlers.App, lo logf.Logger, basePa
 		if len(path) >= 28 && path[:28] == "/api/custom-actions/redirect" {
 			return r
 		}
+		// Skip auth for platform branding — the login page needs the public
+		// GET before any session exists, and uploaded assets (logo/favicon)
+		// are served directly to <img>/<link rel="icon"> tags. Mutating
+		// methods (PUT/POST) still go through auth so the super-admin gate
+		// inside the handler can validate the caller.
+		method := string(r.RequestCtx.Method())
+		if path == "/api/platform/branding" && (method == "GET" || method == "HEAD" || method == "OPTIONS") {
+			return r
+		}
+		if len(path) >= 29 && path[:29] == "/api/platform/branding/asset/" {
+			return r
+		}
 		// Apply auth for all other /api routes (supports both JWT and API key)
 		if len(path) > 4 && path[:4] == "/api" {
 			return middleware.AuthWithDB(app.Config.JWT.Secret, app.DB)(r)
@@ -801,6 +813,12 @@ func setupRoutes(g *fastglue.Fastglue, app *handlers.App, lo logf.Logger, basePa
 	g.GET("/api/settings/sso", app.GetSSOSettings)
 	g.PUT("/api/settings/sso/{provider}", app.UpdateSSOProvider)
 	g.DELETE("/api/settings/sso/{provider}", app.DeleteSSOProvider)
+
+	// Platform branding (super-admin only for writes; public read)
+	g.GET("/api/platform/branding", app.GetPlatformBranding)
+	g.PUT("/api/platform/branding", app.UpdatePlatformBranding)
+	g.POST("/api/platform/branding/upload", app.UploadBrandingAsset)
+	g.GET("/api/platform/branding/asset/{filename}", app.ServeBrandingAsset)
 
 	// Webhooks
 	g.GET("/api/webhooks", app.ListWebhooks)

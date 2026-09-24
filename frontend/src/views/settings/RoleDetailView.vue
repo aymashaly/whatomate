@@ -115,7 +115,7 @@ async function save() {
       })
       hasChanges.value = false
       toast.success(t('common.createdSuccess', { resource: t('resources.Role') }))
-      router.replace(`/settings/roles/${created.id}`)
+      router.replace(`/app/settings/roles/${created.id}`)
     } else {
       await rolesStore.updateRole(role.value!.id, {
         name: form.value.name,
@@ -139,7 +139,7 @@ async function deleteRole() {
   try {
     await rolesStore.deleteRole(role.value.id)
     toast.success(t('common.deletedSuccess', { resource: t('resources.Role') }))
-    router.push('/settings/roles')
+    router.push('/app/settings/roles')
   } catch (e) {
     toast.error(getErrorMessage(e, t('common.failedDelete', { resource: t('resources.role') })))
   }
@@ -163,7 +163,7 @@ onMounted(async () => {
       :title="isNew ? t('roles.createRole') : (role?.name || '')"
       :icon="Shield"
       icon-gradient="bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/20"
-      back-link="/settings/roles"
+      back-link="/app/settings/roles"
       :breadcrumbs="breadcrumbs"
       :is-loading="isLoading"
       :is-not-found="isNotFound"

@@ -62,9 +62,14 @@ type OrganizationSettings struct {
 	HasMetaAppSecret    bool   `json:"has_meta_app_secret"`
 }
 
-// GetOrganizationSettings returns the organization settings
+// GetOrganizationSettings returns the organization settings.
+// Meta App credentials (meta_app_id / meta_config_id / meta_app_secret) are
+// restricted to the platform-level super admin — they describe the SaaS
+// provider's Meta App used for default coexistence / shared embedded signup.
+// For anyone else, those fields are blanked so we don't leak the provider's
+// app credentials to tenant users.
 func (a *App) GetOrganizationSettings(r *fastglue.Request) error {
-	orgID, err := a.getOrgID(r)
+	orgID, userID, err := a.getOrgAndUserID(r)
 	if err != nil {
 		return r.SendErrorEnvelope(fasthttp.StatusUnauthorized, "Unauthorized", nil, "")
 	}
@@ -122,6 +127,13 @@ func (a *App) GetOrganizationSettings(r *fastglue.Request) error {
 		}
 	}
 
+	// Mask Meta App credentials unless the caller is a platform super admin.
+	if !a.IsSuperAdmin(userID) {
+		settings.MetaAppID = ""
+		settings.MetaConfigID = ""
+		settings.HasMetaAppSecret = false
+	}
+
 	return r.SendEnvelope(map[string]any{
 		"settings": settings,
 		"name":     org.Name,
@@ -159,10 +171,18 @@ func (a *App) UpdateOrganizationSettings(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(fasthttp.StatusNotFound, "Organization not found", nil, "")
 	}
 
-	// Gating Meta App credentials update on accounts:write permission
+	// Meta App credentials describe the platform-level Meta App used for
+	// default coexistence / shared embedded-signup. They live on the SaaS
+	// provider's side, not the tenant's — so only the platform super admin
+	// may rotate them. Tenant admins / managers must instead rely on the
+	// defaults from config.toml or add their WhatsApp account directly
+	// from the Accounts page.
 	metaAppCredsTouched := req.MetaAppID != nil || req.MetaConfigID != nil || req.MetaAppSecret != nil
 	if metaAppCredsTouched {
-		if err := a.requirePermission(r, userID, models.ResourceAccounts, models.ActionWrite); err != nil {
+		if !a.IsSuperAdmin(userID) {
+			_ = r.SendErrorEnvelope(fasthttp.StatusForbidden,
+				"Only the platform administrator can change Meta App credentials",
+				nil, "")
 			return nil
 		}
 	}

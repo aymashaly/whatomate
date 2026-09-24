@@ -520,7 +520,7 @@ async function save() {
       const created = (response.data as any).data
       hasChanges.value = false
       toast.success(t('templates.created', 'Template created'))
-      router.replace(`/templates/${created.id}`)
+      router.replace(`/app/templates/${created.id}`)
     } else {
       await api.put(`/templates/${templateId.value}`, payload)
       hasChanges.value = false
@@ -583,7 +583,7 @@ async function deleteTemplate() {
   try {
     await api.delete(`/templates/${template.value.id}`)
     toast.success(t('templates.deleted', 'Template deleted'))
-    router.push('/templates')
+    router.push('/app/templates')
   } catch {
     toast.error(t('templates.deleteFailed', 'Failed to delete template'))
   }
@@ -666,7 +666,7 @@ onMounted(async () => {
     :title="isNew ? $t('templates.newTemplate', 'New Template') : (template?.display_name || template?.name || '')"
     :icon="FileText"
     icon-gradient="bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/20"
-    back-link="/templates"
+    back-link="/app/templates"
     :breadcrumbs="breadcrumbs"
     :is-loading="isLoading"
     :is-not-found="isNotFound"

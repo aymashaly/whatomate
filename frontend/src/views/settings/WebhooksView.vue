@@ -132,10 +132,10 @@ onMounted(() => fetchWebhooks())
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
-    <PageHeader :title="$t('webhooks.title')" :subtitle="$t('webhooks.subtitle')" :icon="WebhookIcon" icon-gradient="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20" back-link="/settings">
+  <div class="flex flex-col h-full">
+    <PageHeader :title="$t('webhooks.title')" :subtitle="$t('webhooks.subtitle')" :icon="WebhookIcon" icon-gradient="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20" back-link="/app/settings">
       <template #actions>
-        <RouterLink v-if="canWrite" to="/settings/webhooks/new">
+        <RouterLink v-if="canWrite" to="/app/settings/webhooks/new">
           <Button variant="outline" size="sm"><Plus class="h-4 w-4 mr-2" />{{ $t('webhooks.addWebhook') }}</Button>
         </RouterLink>
       </template>
@@ -153,52 +153,56 @@ onMounted(() => fetchWebhooks())
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div>
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle>{{ $t('webhooks.yourWebhooks') }}</CardTitle>
-                  <CardDescription>{{ $t('webhooks.yourWebhooksDesc') }}</CardDescription>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>{{ $t('webhooks.yourWebhooks') }}</CardTitle>
+                    <CardDescription>{{ $t('webhooks.yourWebhooksDesc') }}</CardDescription>
+                  </div>
+                  <SearchInput v-model="searchQuery" :placeholder="$t('webhooks.searchWebhooks') + '...'" class="w-64" />
                 </div>
-                <SearchInput v-model="searchQuery" :placeholder="$t('webhooks.searchWebhooks') + '...'" class="w-64" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable :items="webhooks" :columns="columns" :is-loading="isLoading" :empty-icon="WebhookIcon" :empty-title="searchQuery ? $t('webhooks.noMatchingWebhooks') : $t('webhooks.noWebhooksYet')" :empty-description="searchQuery ? $t('webhooks.noMatchingWebhooksDesc') : $t('webhooks.noWebhooksYetDesc')" v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" server-pagination :current-page="currentPage" :total-items="totalItems" :page-size="pageSize" item-name="webhooks" @page-change="handlePageChange">
-                <template #cell-name="{ item: webhook }">
-                  <RouterLink :to="`/settings/webhooks/${webhook.id}`" class="font-medium text-inherit no-underline hover:opacity-80">{{ webhook.name }}</RouterLink>
-                </template>
-                <template #cell-url="{ item: webhook }"><span class="max-w-[200px] truncate text-muted-foreground block">{{ webhook.url }}</span></template>
-                <template #cell-events="{ item: webhook }">
-                  <div class="flex flex-wrap gap-1">
-                    <Badge v-for="event in webhook.events.slice(0, 2)" :key="event" variant="secondary" class="text-xs">{{ getEventLabel(event) }}</Badge>
-                    <Badge v-if="webhook.events.length > 2" variant="outline" class="text-xs">+{{ webhook.events.length - 2 }}</Badge>
-                  </div>
-                </template>
-                <template #cell-status="{ item: webhook }">
-                  <div class="flex items-center gap-2">
-                    <Switch :checked="webhook.is_active" @update:checked="handleToggleWebhook(webhook)" />
-                    <span class="text-sm text-muted-foreground">{{ webhook.is_active ? $t('common.active') : $t('common.inactive') }}</span>
-                  </div>
-                </template>
-                <template #cell-created="{ item: webhook }"><span class="text-muted-foreground">{{ formatDate(webhook.created_at) }}</span></template>
-                <template #cell-actions="{ item: webhook }">
-                  <div class="flex items-center justify-end gap-1">
-                    <IconButton :icon="Play" :label="$t('webhooks.testWebhook')" class="h-8 w-8" :disabled="isTesting === webhook.id" :loading="isTesting === webhook.id" @click="testWebhook(webhook)" />
-                    <RouterLink :to="`/settings/webhooks/${webhook.id}`">
-                      <IconButton :icon="Pencil" :label="$t('common.edit')" class="h-8 w-8" />
+              </CardHeader>
+              <CardContent>
+                <DataTable :items="webhooks" :columns="columns" :is-loading="isLoading" :empty-icon="WebhookIcon" :empty-title="searchQuery ? $t('webhooks.noMatchingWebhooks') : $t('webhooks.noWebhooksYet')" :empty-description="searchQuery ? $t('webhooks.noMatchingWebhooksDesc') : $t('webhooks.noWebhooksYetDesc')" v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" server-pagination :current-page="currentPage" :total-items="totalItems" :page-size="pageSize" item-name="webhooks" @page-change="handlePageChange">
+                  <template #cell-name="{ item: webhook }">
+                    <RouterLink :to="`/app/settings/webhooks/${webhook.id}`" class="font-medium text-inherit no-underline hover:opacity-80">{{ webhook.name }}</RouterLink>
+                  </template>
+                  <template #cell-url="{ item: webhook }"><span class="max-w-[200px] truncate text-muted-foreground block">{{ webhook.url }}</span></template>
+                  <template #cell-events="{ item: webhook }">
+                    <div class="flex flex-wrap gap-1">
+                      <Badge v-for="event in webhook.events.slice(0, 2)" :key="event" variant="secondary" class="text-xs">{{ getEventLabel(event) }}</Badge>
+                      <Badge v-if="webhook.events.length > 2" variant="outline" class="text-xs">+{{ webhook.events.length - 2 }}</Badge>
+                    </div>
+                  </template>
+                  <template #cell-status="{ item: webhook }">
+                    <div class="flex items-center gap-2">
+                      <Switch :checked="webhook.is_active" @update:checked="handleToggleWebhook(webhook)" />
+                      <span class="text-sm text-muted-foreground">{{ webhook.is_active ? $t('common.active') : $t('common.inactive') }}</span>
+                    </div>
+                  </template>
+                  <template #cell-created="{ item: webhook }"><span class="text-muted-foreground">{{ formatDate(webhook.created_at) }}</span></template>
+                  <template #cell-actions="{ item: webhook }">
+                    <div class="flex items-center justify-end gap-1">
+                      <IconButton :icon="Play" :label="$t('webhooks.testWebhook')" class="h-8 w-8" :disabled="isTesting === webhook.id" :loading="isTesting === webhook.id" @click="testWebhook(webhook)" />
+                      <RouterLink :to="`/app/settings/webhooks/${webhook.id}`">
+                        <IconButton :icon="Pencil" :label="$t('common.edit')" class="h-8 w-8" />
+                      </RouterLink>
+                      <IconButton v-if="canDelete" :icon="Trash2" :label="$t('common.delete')" class="h-8 w-8 text-destructive" @click="webhookToDelete = webhook; isDeleteDialogOpen = true" />
+                    </div>
+                  </template>
+                  <template #empty-action>
+                    <RouterLink v-if="canWrite" to="/app/settings/webhooks/new">
+                      <Button variant="outline" size="sm"><Plus class="h-4 w-4 mr-2" />{{ $t('webhooks.addWebhook') }}</Button>
                     </RouterLink>
-                    <IconButton v-if="canDelete" :icon="Trash2" :label="$t('common.delete')" class="h-8 w-8 text-destructive" @click="webhookToDelete = webhook; isDeleteDialogOpen = true" />
-                  </div>
-                </template>
-                <template #empty-action>
-                  <RouterLink v-if="canWrite" to="/settings/webhooks/new">
-                    <Button variant="outline" size="sm"><Plus class="h-4 w-4 mr-2" />{{ $t('webhooks.addWebhook') }}</Button>
-                  </RouterLink>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

@@ -97,7 +97,7 @@ onMounted(async () => {
   <DetailPageLayout
     :title="title"
     :icon="ScrollText"
-    back-link="/settings/audit-logs"
+    back-link="/app/settings/audit-logs"
     :breadcrumbs="breadcrumbs"
     :is-loading="isLoading"
     :is-not-found="!isLoading && !log"

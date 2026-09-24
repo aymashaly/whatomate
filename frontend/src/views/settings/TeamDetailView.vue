@@ -144,7 +144,7 @@ async function save() {
       })
       hasChanges.value = false
       toast.success(t('teams.created', 'Team created'))
-      router.replace(`/settings/teams/${created.id}`)
+      router.replace(`/app/settings/teams/${created.id}`)
     } else {
       await teamsStore.updateTeam(team.value!.id, {
         name: form.value.name,
@@ -169,7 +169,7 @@ async function deleteTeam() {
   try {
     await teamsStore.deleteTeam(team.value.id)
     toast.success(t('teams.deleted', 'Team deleted'))
-    router.push('/settings/teams')
+    router.push('/app/settings/teams')
   } catch {
     toast.error(t('teams.deleteFailed', 'Failed to delete team'))
   }
@@ -237,7 +237,7 @@ onMounted(async () => {
     :title="isNew ? $t('teams.newTeam', 'New Team') : (team?.name || '')"
     :icon="Users"
     icon-gradient="bg-gradient-to-br from-cyan-500 to-blue-600 shadow-cyan-500/20"
-    back-link="/settings/teams"
+    back-link="/app/settings/teams"
     :breadcrumbs="breadcrumbs"
     :is-loading="isLoading"
     :is-not-found="isNotFound"

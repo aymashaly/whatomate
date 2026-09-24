@@ -702,54 +702,57 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
+  <div class="flex flex-col h-full">
     <!-- Header -->
-    <header class="border-b border-white/[0.08] light:border-gray-200 bg-[#0a0a0b]/95 light:bg-white/95 backdrop-blur">
-      <div class="flex h-16 items-center px-6">
-        <div class="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center mr-3 shadow-lg shadow-emerald-500/20">
-          <LayoutDashboard class="h-4 w-4 text-white" />
-        </div>
-        <div class="flex-1">
-          <h1 class="text-xl font-semibold text-white light:text-gray-900">{{ $t('dashboard.title') }}</h1>
-          <p class="text-sm text-white/50 light:text-gray-500">{{ $t('dashboard.subtitle') }}</p>
-        </div>
+    <header class="glass mx-2 mt-2 flex h-14 items-center rounded-2xl px-4 light:bg-white/85">
+      <div class="relative mr-3 h-9 w-9 overflow-hidden rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-sm ring-1 ring-white/[0.10]">
+        <LayoutDashboard class="h-4 w-4 text-white" />
+      </div>
+      <div class="flex-1">
+        <h1 class="display text-[14px] tracking-tight text-foreground">{{ $t('dashboard.title') }}</h1>
+        <p class="text-[11.5px] text-muted-foreground">{{ $t('dashboard.subtitle') }}</p>
+      </div>
 
-        <!-- Time Range Filter -->
-        <div class="flex items-center gap-2">
-          <Button v-if="canCreateWidget" variant="outline" size="sm" @click="openAddWidgetDialog" class="bg-white/[0.04] border-white/[0.1] text-white/70 hover:bg-white/[0.08] hover:text-white light:bg-white light:border-gray-200 light:text-gray-700">
-            <Plus class="h-4 w-4 mr-2" />
-            {{ $t('dashboard.addWidget') }}
-          </Button>
+      <!-- Time Range Filter -->
+      <div class="flex items-center gap-2">
+        <Button
+          v-if="canCreateWidget"
+          variant="outline"
+          size="sm"
+          @click="openAddWidgetDialog"
+          class="spring-pressable neu-button !border-transparent"
+        >
+          <Plus class="h-4 w-4 mr-2" />
+          {{ $t('dashboard.addWidget') }}
+        </Button>
 
-          <Button
-            v-if="canEditWidget && widgets.length > 1"
-            variant="outline"
-            size="sm"
-            @click="isDragMode = !isDragMode"
-            :class="[
-              isDragMode
-                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30 hover:text-emerald-300'
-                : 'bg-white/[0.04] border-white/[0.1] text-white/70 hover:bg-white/[0.08] hover:text-white light:bg-white light:border-gray-200 light:text-gray-700'
-            ]"
-          >
-            <GripVertical class="h-4 w-4 mr-2" />
-            {{ isDragMode ? $t('common.done') : $t('dashboard.editLayout') }}
-          </Button>
+        <Button
+          v-if="canEditWidget && widgets.length > 1"
+          variant="outline"
+          size="sm"
+          @click="isDragMode = !isDragMode"
+          :class="[
+            'spring-pressable neu-button !border-transparent',
+            isDragMode && 'bg-emerald-500/15 text-emerald-700'
+          ]"
+        >
+          <GripVertical class="h-4 w-4 mr-2" />
+          {{ isDragMode ? $t('common.done') : $t('dashboard.editLayout') }}
+        </Button>
 
-          <DateRangePicker
-            v-model:selected-range="selectedRange"
-            v-model:custom-date-range="customDateRange"
-            v-model:is-date-picker-open="isDatePickerOpen"
-            :format-date-range-display="formatDateRangeDisplay"
-            @apply-custom="applyCustomRange"
-          />
-        </div>
+        <DateRangePicker
+          v-model:selected-range="selectedRange"
+          v-model:custom-date-range="customDateRange"
+          v-model:is-date-picker-open="isDatePickerOpen"
+          :format-date-range-display="formatDateRangeDisplay"
+          @apply-custom="applyCustomRange"
+        />
       </div>
     </header>
 
     <!-- Content -->
     <ScrollArea class="flex-1">
-      <div class="p-6 space-y-6">
+      <div class="px-2 md:px-4 pt-4 pb-6 space-y-6">
         <!-- Loading Skeleton -->
         <div v-if="isLoading" class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div v-for="i in 4" :key="i" class="rounded-xl border border-white/[0.08] bg-white/[0.02] p-6 light:bg-white light:border-gray-200">

@@ -130,7 +130,7 @@ async function deleteApiKey() {
   try {
     await apiKeysService.delete(apiKey.value.id)
     toast.success(t('common.deletedSuccess', { resource: t('resources.apiKey', 'API Key') }))
-    router.push('/settings/api-keys')
+    router.push('/app/settings/api-keys')
   } catch (e) {
     toast.error(getErrorMessage(e, t('common.failedDelete', { resource: t('resources.apiKey', 'API key') })))
   }
@@ -157,7 +157,7 @@ onMounted(async () => {
       :title="isNew ? $t('apiKeys.newApiKey', 'New API Key') : (apiKey?.name || '')"
       :icon="Key"
       icon-gradient="bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/20"
-      back-link="/settings/api-keys"
+      back-link="/app/settings/api-keys"
       :breadcrumbs="breadcrumbs"
       :is-loading="isLoading"
       :is-not-found="isNotFound"
@@ -272,7 +272,7 @@ onMounted(async () => {
           </div>
         </div>
         <DialogFooter>
-          <Button size="sm" @click="isKeyDisplayOpen = false; if (createdKeyId) router.replace(`/settings/api-keys/${createdKeyId}`)">{{ $t('common.done') }}</Button>
+          <Button size="sm" @click="isKeyDisplayOpen = false; if (createdKeyId) router.replace(`/app/settings/api-keys/${createdKeyId}`)">{{ $t('common.done') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

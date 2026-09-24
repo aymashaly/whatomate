@@ -251,17 +251,20 @@ onMounted(() => {
       <div class="p-6">
         <div class="max-w-6xl mx-auto space-y-6">
         <!-- Info Card -->
-        <Card class="bg-blue-950/30 light:bg-blue-50 border-blue-800 light:border-blue-200">
-          <CardContent class="flex items-start gap-3 pt-6">
-            <Info class="h-5 w-5 text-blue-400 light:text-blue-600 shrink-0 mt-0.5" />
-            <div class="text-sm text-blue-200 light:text-blue-800">
-              <p class="font-medium mb-1">{{ $t('sso.configuration') }}</p>
-              <p class="text-blue-300 light:text-blue-700">
-                {{ $t('sso.configurationDesc') }}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div class="ios-card relative overflow-hidden">
+          <div class="ios-edge-glow" aria-hidden="true" />
+          <Card class="bg-blue-950/30 light:bg-blue-50 border-blue-800 light:border-blue-200 !border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+            <CardContent class="flex items-start gap-3 pt-6">
+              <Info class="h-5 w-5 text-blue-400 light:text-blue-600 shrink-0 mt-0.5" />
+              <div class="text-sm text-blue-200 light:text-blue-800">
+                <p class="font-medium mb-1">{{ $t('sso.configuration') }}</p>
+                <p class="text-blue-300 light:text-blue-700">
+                  {{ $t('sso.configurationDesc') }}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <!-- Provider Cards -->
         <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

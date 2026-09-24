@@ -199,8 +199,8 @@ async function copyInviteLink() {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
-    <PageHeader :title="$t('users.title')" :icon="Users" icon-gradient="bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/20" back-link="/settings" :breadcrumbs="breadcrumbs">
+  <div class="flex flex-col h-full">
+    <PageHeader :title="$t('users.title')" :icon="Users" icon-gradient="bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/20" back-link="/app/settings" :breadcrumbs="breadcrumbs">
       <template #actions>
         <Button variant="outline" size="sm" @click="copyInviteLink"><Link class="h-4 w-4 mr-2" />{{ $t('users.copyInviteLink') }}</Button>
         <Button v-if="organizationsStore.isMultiOrg && authStore.hasPermission('organizations', 'assign')" variant="outline" size="sm" @click="openAddExistingDialog"><UserPlus class="h-4 w-4 mr-2" />{{ $t('users.addExistingUser') }}</Button>
@@ -221,91 +221,95 @@ async function copyInviteLink() {
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div>
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <CardTitle>{{ $t('users.yourUsers') }}</CardTitle>
-                    <Badge variant="outline" class="border-green-600 text-green-600 gap-1.5">
-                      <span class="inline-block h-2 w-2 rounded-full bg-green-600" />
-                      {{ onlineCount }} {{ $t('users.online', 'online') }}
-                    </Badge>
-                  </div>
-                  <CardDescription>{{ $t('users.subtitle') }}. <RouterLink to="/settings/roles" class="text-primary hover:underline">{{ $t('users.manageRoles') }}</RouterLink></CardDescription>
-                </div>
-                <div class="flex items-center gap-3 flex-wrap">
-                  <Select v-model="roleFilter">
-                    <SelectTrigger class="w-44 h-9">
-                      <SelectValue :placeholder="$t('users.allRoles', 'All roles')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem :value="ALL_ROLES">{{ $t('users.allRoles', 'All roles') }}</SelectItem>
-                      <SelectItem v-for="role in rolesStore.roles" :key="role.id" :value="role.id" class="capitalize">
-                        {{ role.name }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <label class="flex items-center gap-2 text-sm">
-                    <Switch :checked="onlineOnly" @update:checked="onlineOnly = $event" />
-                    <span>{{ $t('users.onlineOnly', 'Online only') }}</span>
-                  </label>
-                  <SearchInput v-model="searchQuery" :placeholder="$t('users.searchUsers') + '...'" class="w-64" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable :items="users" :columns="columns" :is-loading="isLoading" :empty-icon="UserIcon" :empty-title="searchQuery ? $t('users.noMatchingUsers') : $t('users.noUsersFound')" :empty-description="searchQuery ? $t('users.noMatchingUsersDesc') : $t('users.noUsersFoundDesc')" v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" server-pagination :current-page="currentPage" :total-items="totalItems" :page-size="pageSize" item-name="users" @page-change="handlePageChange">
-                <template #cell-user="{ item: user }">
-                  <RouterLink :to="`/settings/users/${user.id}`" class="flex items-center gap-3 text-inherit no-underline hover:opacity-80">
-                    <div class="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <component :is="getRoleIcon(getRoleName(user))" class="h-4 w-4 text-primary" />
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <CardTitle>{{ $t('users.yourUsers') }}</CardTitle>
+                      <Badge variant="outline" class="border-green-600 text-green-600 gap-1.5">
+                        <span class="inline-block h-2 w-2 rounded-full bg-green-600" />
+                        {{ onlineCount }} {{ $t('users.online', 'online') }}
+                      </Badge>
                     </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2">
-                        <p class="font-medium truncate">{{ user.full_name }}</p>
-                        <Badge v-if="user.id === currentUserId" variant="outline" class="text-xs">{{ $t('users.you') }}</Badge>
-                        <Badge v-if="user.is_super_admin" variant="default" class="text-xs">{{ $t('users.superAdmin') }}</Badge>
-                        <Badge v-if="user.is_member" variant="secondary" class="text-xs">{{ $t('users.member') }}</Badge>
+                    <CardDescription>{{ $t('users.subtitle') }}. <RouterLink to="/app/settings/roles" class="text-primary hover:underline">{{ $t('users.manageRoles') }}</RouterLink></CardDescription>
+                  </div>
+                  <div class="flex items-center gap-3 flex-wrap">
+                    <Select v-model="roleFilter">
+                      <SelectTrigger class="w-44 h-9">
+                        <SelectValue :placeholder="$t('users.allRoles', 'All roles')" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem :value="ALL_ROLES">{{ $t('users.allRoles', 'All roles') }}</SelectItem>
+                        <SelectItem v-for="role in rolesStore.roles" :key="role.id" :value="role.id" class="capitalize">
+                          {{ role.name }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <label class="flex items-center gap-2 text-sm">
+                      <Switch :checked="onlineOnly" @update:checked="onlineOnly = $event" />
+                      <span>{{ $t('users.onlineOnly', 'Online only') }}</span>
+                    </label>
+                    <SearchInput v-model="searchQuery" :placeholder="$t('users.searchUsers') + '...'" class="w-64" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataTable :items="users" :columns="columns" :is-loading="isLoading" :empty-icon="UserIcon" :empty-title="searchQuery ? $t('users.noMatchingUsers') : $t('users.noUsersFound')" :empty-description="searchQuery ? $t('users.noMatchingUsersDesc') : $t('users.noUsersFoundDesc')" v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" server-pagination :current-page="currentPage" :total-items="totalItems" :page-size="pageSize" item-name="users" @page-change="handlePageChange">
+                  <template #cell-user="{ item: user }">
+                    <RouterLink :to="`/app/settings/users/${user.id}`" class="flex items-center gap-3 text-inherit no-underline hover:opacity-80">
+                      <div class="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <component :is="getRoleIcon(getRoleName(user))" class="h-4 w-4 text-primary" />
                       </div>
-                    </div>
-                  </RouterLink>
-                </template>
-                <template #cell-email="{ item: user }">
-                  <span class="text-sm text-muted-foreground truncate">{{ user.email }}</span>
-                </template>
-                <template #cell-role="{ item: user }">
-                  <Badge :variant="getRoleBadgeVariant(getRoleName(user))" class="capitalize">{{ getRoleName(user) }}</Badge>
-                </template>
-                <template #cell-status="{ item: user }">
-                  <Badge variant="outline" :class="user.is_active ? 'border-green-600 text-green-600' : ''">{{ user.is_active ? $t('common.active') : $t('common.inactive') }}</Badge>
-                </template>
-                <template #cell-created="{ item: user }">
-                  <span class="text-muted-foreground">{{ formatDate(user.created_at) }}</span>
-                </template>
-                <template #cell-actions="{ item: user }">
-                  <div class="flex items-center justify-end gap-1">
-                    <RouterLink :to="`/settings/users/${user.id}`">
-                      <IconButton :icon="Pencil" :label="$t('users.editUserTooltip')" class="h-8 w-8" />
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                          <p class="font-medium truncate">{{ user.full_name }}</p>
+                          <Badge v-if="user.id === currentUserId" variant="outline" class="text-xs">{{ $t('users.you') }}</Badge>
+                          <Badge v-if="user.is_super_admin" variant="default" class="text-xs">{{ $t('users.superAdmin') }}</Badge>
+                          <Badge v-if="user.is_member" variant="secondary" class="text-xs">{{ $t('users.member') }}</Badge>
+                        </div>
+                      </div>
                     </RouterLink>
-                    <IconButton
-                      :label="user.is_member
-                        ? $t('users.removeMemberTooltip')
-                        : (user.id === currentUserId ? $t('users.cantDeleteYourself') : $t('users.deleteUserTooltip'))"
-                      class="h-8 w-8"
-                      :disabled="user.id === currentUserId"
-                      @click="openDeleteDialog(user)"
-                    >
-                      <component :is="user.is_member ? UserMinus : Trash2" class="h-4 w-4 text-destructive" />
-                    </IconButton>
-                  </div>
-                </template>
-                <template #empty-action>
-                  <Button variant="outline" size="sm" @click="openCreateDialog"><Plus class="h-4 w-4 mr-2" />{{ $t('users.addUser') }}</Button>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+                  </template>
+                  <template #cell-email="{ item: user }">
+                    <span class="text-sm text-muted-foreground truncate">{{ user.email }}</span>
+                  </template>
+                  <template #cell-role="{ item: user }">
+                    <Badge :variant="getRoleBadgeVariant(getRoleName(user))" class="capitalize">{{ getRoleName(user) }}</Badge>
+                  </template>
+                  <template #cell-status="{ item: user }">
+                    <Badge variant="outline" :class="user.is_active ? 'border-green-600 text-green-600' : ''">{{ user.is_active ? $t('common.active') : $t('common.inactive') }}</Badge>
+                  </template>
+                  <template #cell-created="{ item: user }">
+                    <span class="text-muted-foreground">{{ formatDate(user.created_at) }}</span>
+                  </template>
+                  <template #cell-actions="{ item: user }">
+                    <div class="flex items-center justify-end gap-1">
+                      <RouterLink :to="`/app/settings/users/${user.id}`">
+                        <IconButton :icon="Pencil" :label="$t('users.editUserTooltip')" class="h-8 w-8" />
+                      </RouterLink>
+                      <IconButton
+                        :label="user.is_member
+                          ? $t('users.removeMemberTooltip')
+                          : (user.id === currentUserId ? $t('users.cantDeleteYourself') : $t('users.deleteUserTooltip'))"
+                        class="h-8 w-8"
+                        :disabled="user.id === currentUserId"
+                        @click="openDeleteDialog(user)"
+                      >
+                        <component :is="user.is_member ? UserMinus : Trash2" class="h-4 w-4 text-destructive" />
+                      </IconButton>
+                    </div>
+                  </template>
+                  <template #empty-action>
+                    <Button variant="outline" size="sm" @click="openCreateDialog"><Plus class="h-4 w-4 mr-2" />{{ $t('users.addUser') }}</Button>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

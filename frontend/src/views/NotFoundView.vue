@@ -1,6 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Home, ArrowLeft } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+// Logged-in users get sent to the app; everyone else gets the landing page.
+const homePath = computed(() => (authStore.isAuthenticated ? '/app/dashboard' : '/'))
 </script>
 
 <template>
@@ -16,7 +22,7 @@ import { Home, ArrowLeft } from 'lucide-vue-next'
           <ArrowLeft class="h-4 w-4 mr-2" />
           {{ $t('notFound.goBack') }}
         </Button>
-        <RouterLink to="/">
+        <RouterLink :to="homePath">
           <Button>
             <Home class="h-4 w-4 mr-2" />
             {{ $t('notFound.goHome') }}

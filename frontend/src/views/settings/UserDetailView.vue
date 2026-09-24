@@ -162,7 +162,7 @@ async function deleteUser() {
     toast.success(isMember.value
       ? t('users.memberRemoved')
       : t('common.deletedSuccess', { resource: t('resources.User') }))
-    router.push('/settings/users')
+    router.push('/app/settings/users')
   } catch (e) {
     toast.error(getErrorMessage(e, t('common.failedDelete', { resource: t('resources.user') })))
   }
@@ -180,7 +180,7 @@ onMounted(async () => {
       :title="user?.full_name || ''"
       :icon="UserIcon"
       icon-gradient="bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/20"
-      back-link="/settings/users"
+      back-link="/app/settings/users"
       :breadcrumbs="breadcrumbs"
       :is-loading="isLoading"
       :is-not-found="isNotFound"

@@ -439,7 +439,7 @@ async function save() {
       }
       hasChanges.value = false
       toast.success(t('campaigns.created', 'Campaign created'))
-      router.replace(`/campaigns/${created.id}`)
+      router.replace(`/app/campaigns/${created.id}`)
     } else {
       await campaignsService.update(campaign.value!.id, payload)
       // Upload media if selected
@@ -474,7 +474,7 @@ async function deleteCampaign() {
   try {
     await campaignsService.delete(campaign.value.id)
     toast.success(t('campaigns.deleted', 'Campaign deleted'))
-    router.push('/campaigns')
+    router.push('/app/campaigns')
   } catch {
     toast.error(t('campaigns.deleteFailed', 'Failed to delete campaign'))
   }
@@ -951,7 +951,7 @@ onUnmounted(() => {
     :title="isNew ? $t('campaigns.newCampaign', 'New Campaign') : (campaign?.name || '')"
     :icon="Megaphone"
     icon-gradient="bg-gradient-to-br from-pink-500 to-rose-600 shadow-pink-500/20"
-    back-link="/campaigns"
+    back-link="/app/campaigns"
     :breadcrumbs="breadcrumbs"
     :is-loading="isLoading"
     :is-not-found="isNotFound"

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -400,7 +401,17 @@ func (a *App) SubmitTemplate(r *fastglue.Request) error {
 	metaTemplateID, submitErr := a.submitTemplateToMeta(account, template)
 	if submitErr != nil {
 		a.Log.Error("Failed to submit template to Meta", "error", submitErr)
-		return r.SendErrorEnvelope(fasthttp.StatusBadGateway, "Failed to submit template to Meta: "+submitErr.Error(), nil, "")
+		// Map Meta's HTTP status to ours so the UI shows the real reason instead
+		// of Cloudflare's 502 page (Cloudflare intercepts any 5xx from origin
+		// as origin_bad_gateway). Meta 4xx = our 400 (caller error — bad name,
+		// bad content, missing media, etc.); Meta 5xx/connection failure = our
+		// 502 (upstream problem, not the user's fault).
+		status := fasthttp.StatusBadGateway
+		var apiErr *whatsapp.APIError
+		if errors.As(submitErr, &apiErr) && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
+			status = fasthttp.StatusBadRequest
+		}
+		return r.SendErrorEnvelope(status, "Failed to submit template to Meta: "+submitErr.Error(), nil, "")
 	}
 	template.MetaTemplateID = metaTemplateID
 
@@ -715,7 +726,13 @@ func (a *App) UploadTemplateMedia(r *fastglue.Request) error {
 	handle, err := a.WhatsApp.ResumableUpload(ctx, waAccount, fileData, mimeType, fileHeader.Filename)
 	if err != nil {
 		a.Log.Error("Failed to upload template media", "error", err)
-		return r.SendErrorEnvelope(fasthttp.StatusBadGateway, "Failed to upload media to Meta", nil, "")
+		// Map Meta's status to ours — Meta 4xx = our 400, Meta 5xx/network = 502.
+		status := fasthttp.StatusBadGateway
+		var apiErr *whatsapp.APIError
+		if errors.As(err, &apiErr) && apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
+			status = fasthttp.StatusBadRequest
+		}
+		return r.SendErrorEnvelope(status, "Failed to upload media to Meta: "+err.Error(), nil, "")
 	}
 
 	return r.SendEnvelope(map[string]any{

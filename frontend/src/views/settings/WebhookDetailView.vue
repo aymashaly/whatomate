@@ -167,7 +167,7 @@ async function save() {
       const created = (response.data as any).data?.webhook || (response.data as any).data || response.data
       hasChanges.value = false
       toast.success(t('common.createdSuccess', { resource: t('resources.Webhook') }))
-      router.replace(`/settings/webhooks/${created.id}`)
+      router.replace(`/app/settings/webhooks/${created.id}`)
     } else {
       await webhooksService.update(webhook.value!.id, {
         ...payload,
@@ -201,7 +201,7 @@ async function deleteWebhook() {
   try {
     await webhooksService.delete(webhook.value.id)
     toast.success(t('common.deletedSuccess', { resource: t('resources.Webhook') }))
-    router.push('/settings/webhooks')
+    router.push('/app/settings/webhooks')
   } catch (e) {
     toast.error(getErrorMessage(e, t('common.failedDelete', { resource: t('resources.webhook') })))
   }
@@ -225,7 +225,7 @@ onMounted(async () => {
       :title="isNew ? $t('webhooks.newWebhook', 'New Webhook') : (webhook?.name || '')"
       :icon="WebhookIcon"
       icon-gradient="bg-gradient-to-br from-indigo-500 to-purple-600 shadow-indigo-500/20"
-      back-link="/settings/webhooks"
+      back-link="/app/settings/webhooks"
       :breadcrumbs="breadcrumbs"
       :is-loading="isLoading"
       :is-not-found="isNotFound"

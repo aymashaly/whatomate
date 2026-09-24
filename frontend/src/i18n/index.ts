@@ -74,6 +74,11 @@ export const i18n = createI18n({
   messages,
 })
 
+// Locales written right-to-left. Drives <html dir="rtl"> and Tailwind
+// logical-property utilities (ms-*, me-*, text-start, text-end) so the
+// same markup renders correctly in both directions.
+const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur'])
+
 // Helper to change locale
 export function setLocale(locale: string) {
   if (!messages[locale]) {
@@ -83,7 +88,12 @@ export function setLocale(locale: string) {
   i18n.global.locale.value = locale
   localStorage.setItem('locale', locale)
   document.documentElement.setAttribute('lang', locale)
+  document.documentElement.setAttribute('dir', RTL_LOCALES.has(locale) ? 'rtl' : 'ltr')
 }
+
+// Apply direction on first paint so RTL users don't see an LTR flash
+// while the locale JSON is hydrating.
+document.documentElement.setAttribute('dir', RTL_LOCALES.has(i18n.global.locale.value) ? 'rtl' : 'ltr')
 
 // Get current locale
 export function getLocale(): string {

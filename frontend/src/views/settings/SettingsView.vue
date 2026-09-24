@@ -28,6 +28,12 @@ const orgID = computed(
   () => localStorage.getItem('selected_organization_id') || authStore.organizationId,
 )
 const userID = computed(() => authStore.user?.id || '')
+// Meta App credentials (tenant-level Meta App ID / Config ID / Secret used
+// for default coexistence / embedded signup) are set by the SaaS platform
+// super admin only — they're the provider's app credentials, not the
+// tenant's. Tenants must use the platform defaults or connect their
+// WhatsApp account directly from the Accounts page.
+const isSuperAdmin = computed(() => authStore.user?.is_super_admin || false)
 const canWriteAccounts = computed(() => authStore.hasPermission('accounts', 'write'))
 
 const isSubmitting = ref(false)
@@ -135,7 +141,7 @@ async function saveGeneralSettings() {
       date_format: generalSettings.value.date_format,
       mask_phone_numbers: generalSettings.value.mask_phone_numbers
     }
-    if (canWriteAccounts.value) {
+    if (isSuperAdmin.value) {
       payload.meta_app_id = generalSettings.value.meta_app_id
       payload.meta_config_id = generalSettings.value.meta_config_id
       if (generalSettings.value.meta_app_secret) {
@@ -336,8 +342,8 @@ function togglePlayAudio(type: 'hold_music' | 'ringback') {
               </div>
             </div>
 
-            <!-- Meta App Credentials Card (Gated on canWriteAccounts) -->
-            <div v-if="canWriteAccounts" class="mt-6 rounded-xl border border-white/[0.08] bg-white/[0.02] light:bg-white light:border-gray-200">
+            <!-- Meta App Credentials Card (Gated on isSuperAdmin — only the platform-level super admin can rotate these. They describe the SaaS provider's Meta App used for default coexistence / embedded signup, not the tenant's.) -->
+            <div v-if="isSuperAdmin" class="mt-6 rounded-xl border border-white/[0.08] bg-white/[0.02] light:bg-white light:border-gray-200">
               <div class="p-6 pb-3">
                 <h3 class="text-lg font-semibold text-white light:text-gray-900">{{ $t('settings.metaAppCredentials') }}</h3>
                 <p class="text-sm text-white/40 light:text-gray-500">{{ $t('settings.metaAppCredentialsDesc') }}</p>

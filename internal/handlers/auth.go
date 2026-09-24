@@ -114,7 +114,9 @@ func (a *App) Register(r *fastglue.Request) error {
 	}
 
 	if req.OrganizationID == uuid.Nil {
-		return r.SendErrorEnvelope(fasthttp.StatusBadRequest, "organization_id is required", nil, "")
+		return r.SendErrorEnvelope(fasthttp.StatusBadRequest,
+			"Invalid or missing invitation. Please use the invite link your admin shared with you.",
+			nil, "")
 	}
 
 	// Validate the organization exists

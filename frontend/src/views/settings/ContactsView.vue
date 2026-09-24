@@ -154,8 +154,8 @@ function getDisplayName(contact: Contact): string {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
-    <PageHeader :title="$t('contacts.title')" :subtitle="$t('contacts.subtitle')" :icon="Users" icon-gradient="bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/20" back-link="/settings">
+  <div class="flex flex-col h-full">
+    <PageHeader :title="$t('contacts.title')" :subtitle="$t('contacts.subtitle')" :icon="Users" icon-gradient="bg-gradient-to-br from-blue-500 to-cyan-600 shadow-blue-500/20" back-link="/app/settings">
       <template v-if="canWriteContacts || canImportContacts || canExportContacts" #actions>
         <Button v-if="canImportContacts || canExportContacts" variant="outline" size="sm" @click="isImportExportOpen = true">
           <Download class="h-4 w-4 mr-2" />{{ $t('common.import') }}/{{ $t('common.export') }}
@@ -177,74 +177,78 @@ function getDisplayName(contact: Contact): string {
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div>
-          <Card>
-            <CardHeader>
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle>{{ $t('contacts.allContacts') }}</CardTitle>
-                  <CardDescription>{{ $t('contacts.allContactsDesc') }}</CardDescription>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+              <CardHeader>
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle>{{ $t('contacts.allContacts') }}</CardTitle>
+                    <CardDescription>{{ $t('contacts.allContactsDesc') }}</CardDescription>
+                  </div>
+                  <SearchInput v-model="searchQuery" :placeholder="$t('contacts.searchContacts') + '...'" class="w-64" />
                 </div>
-                <SearchInput v-model="searchQuery" :placeholder="$t('contacts.searchContacts') + '...'" class="w-64" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                :items="contacts"
-                :columns="columns"
-                :is-loading="isLoading"
-                :empty-icon="Users"
-                :empty-title="searchQuery ? $t('contacts.noMatchingContacts') : $t('contacts.noContactsYet')"
-                :empty-description="searchQuery ? $t('contacts.noMatchingContactsDesc') : $t('contacts.noContactsYetDesc')"
-                v-model:sort-key="sortKey"
-                v-model:sort-direction="sortDirection"
-                server-pagination
-                :current-page="currentPage"
-                :total-items="totalItems"
-                :page-size="pageSize"
-                item-name="contacts"
-                @page-change="handlePageChange"
-              >
-                <template #cell-profile_name="{ item: contact }">
-                  <div class="flex flex-col">
-                    <RouterLink :to="`/settings/contacts/${contact.id}`" class="font-medium text-inherit no-underline hover:opacity-80">{{ getDisplayName(contact) }}</RouterLink>
-                    <span v-if="contact.last_message_preview" class="text-xs text-muted-foreground truncate max-w-[200px]">{{ contact.last_message_preview }}</span>
-                  </div>
-                </template>
-                <template #cell-phone_number="{ item: contact }">
-                  <code class="text-sm">{{ contact.phone_number }}</code>
-                </template>
-                <template #cell-tags="{ item: contact }">
-                  <div class="flex flex-wrap gap-1">
-                    <TagBadge v-for="tag in (contact.tags || []).slice(0, 3)" :key="tag" color="gray" class="text-xs">{{ tag }}</TagBadge>
-                    <Badge v-if="(contact.tags || []).length > 3" variant="outline" class="text-xs">+{{ contact.tags.length - 3 }}</Badge>
-                  </div>
-                </template>
-                <template #cell-last_message_at="{ item: contact }">
-                  <span class="text-muted-foreground">{{ contact.last_message_at ? formatDate(contact.last_message_at) : $t('contacts.never') }}</span>
-                </template>
-                <template #cell-created_at="{ item: contact }">
-                  <span class="text-muted-foreground">{{ formatDate(contact.created_at) }}</span>
-                </template>
-                <template #cell-actions="{ item: contact }">
-                  <div class="flex items-center justify-end gap-1">
-                    <IconButton :icon="MessageSquare" :label="$t('contacts.openChat')" class="h-8 w-8" @click="openChat(contact)" />
-                    <RouterLink :to="`/settings/contacts/${contact.id}`">
-                      <IconButton :icon="Pencil" :label="$t('common.edit')" class="h-8 w-8" />
-                    </RouterLink>
-                    <IconButton :label="$t('common.delete')" class="h-8 w-8" @click="openDeleteDialog(contact)">
-                      <Trash2 class="h-4 w-4 text-destructive" />
-                    </IconButton>
-                  </div>
-                </template>
-                <template v-if="canWriteContacts" #empty-action>
-                  <Button variant="outline" size="sm" @click="openCreateDialog">
-                    <Plus class="h-4 w-4 mr-2" />
-                    {{ $t('contacts.addContact') }}
-                  </Button>
-                </template>
-              </DataTable>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <DataTable
+                  :items="contacts"
+                  :columns="columns"
+                  :is-loading="isLoading"
+                  :empty-icon="Users"
+                  :empty-title="searchQuery ? $t('contacts.noMatchingContacts') : $t('contacts.noContactsYet')"
+                  :empty-description="searchQuery ? $t('contacts.noMatchingContactsDesc') : $t('contacts.noContactsYetDesc')"
+                  v-model:sort-key="sortKey"
+                  v-model:sort-direction="sortDirection"
+                  server-pagination
+                  :current-page="currentPage"
+                  :total-items="totalItems"
+                  :page-size="pageSize"
+                  item-name="contacts"
+                  @page-change="handlePageChange"
+                >
+                  <template #cell-profile_name="{ item: contact }">
+                    <div class="flex flex-col">
+                      <RouterLink :to="`/app/settings/contacts/${contact.id}`" class="font-medium text-inherit no-underline hover:opacity-80">{{ getDisplayName(contact) }}</RouterLink>
+                      <span v-if="contact.last_message_preview" class="text-xs text-muted-foreground truncate max-w-[200px]">{{ contact.last_message_preview }}</span>
+                    </div>
+                  </template>
+                  <template #cell-phone_number="{ item: contact }">
+                    <code class="text-sm">{{ contact.phone_number }}</code>
+                  </template>
+                  <template #cell-tags="{ item: contact }">
+                    <div class="flex flex-wrap gap-1">
+                      <TagBadge v-for="tag in (contact.tags || []).slice(0, 3)" :key="tag" color="gray" class="text-xs">{{ tag }}</TagBadge>
+                      <Badge v-if="(contact.tags || []).length > 3" variant="outline" class="text-xs">+{{ contact.tags.length - 3 }}</Badge>
+                    </div>
+                  </template>
+                  <template #cell-last_message_at="{ item: contact }">
+                    <span class="text-muted-foreground">{{ contact.last_message_at ? formatDate(contact.last_message_at) : $t('contacts.never') }}</span>
+                  </template>
+                  <template #cell-created_at="{ item: contact }">
+                    <span class="text-muted-foreground">{{ formatDate(contact.created_at) }}</span>
+                  </template>
+                  <template #cell-actions="{ item: contact }">
+                    <div class="flex items-center justify-end gap-1">
+                      <IconButton :icon="MessageSquare" :label="$t('contacts.openChat')" class="h-8 w-8" @click="openChat(contact)" />
+                      <RouterLink :to="`/app/settings/contacts/${contact.id}`">
+                        <IconButton :icon="Pencil" :label="$t('common.edit')" class="h-8 w-8" />
+                      </RouterLink>
+                      <IconButton :label="$t('common.delete')" class="h-8 w-8" @click="openDeleteDialog(contact)">
+                        <Trash2 class="h-4 w-4 text-destructive" />
+                      </IconButton>
+                    </div>
+                  </template>
+                  <template v-if="canWriteContacts" #empty-action>
+                    <Button variant="outline" size="sm" @click="openCreateDialog">
+                      <Plus class="h-4 w-4 mr-2" />
+                      {{ $t('contacts.addContact') }}
+                    </Button>
+                  </template>
+                </DataTable>
+              </CardContent>
+
+                      </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

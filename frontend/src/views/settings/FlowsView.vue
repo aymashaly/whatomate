@@ -213,7 +213,7 @@ function sanitizeScreensForMeta(screens: any[]): any[] {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#0a0a0b] light:bg-gray-50">
+  <div class="flex flex-col h-full">
     <PageHeader :title="$t('flows.title')" :subtitle="$t('flows.subtitle')" :icon="Workflow" icon-gradient="bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/20">
       <template #actions>
         <Button variant="outline" size="sm" @click="syncFlows" :disabled="isSyncing || !selectedAccount || selectedAccount === 'all'"><RefreshCw :class="['h-4 w-4 mr-2', isSyncing && 'animate-spin']" />{{ $t('flows.syncFromMeta') }}</Button>
@@ -233,8 +233,10 @@ function sanitizeScreensForMeta(screens: any[]): any[] {
     <ScrollArea v-else class="flex-1">
       <div class="p-6">
         <div class="max-w-6xl mx-auto">
-          <Card>
-            <CardHeader>
+          <div class="ios-card relative overflow-hidden">
+            <div class="ios-edge-glow" aria-hidden="true" />
+            <Card class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+            <CardHeader class="ios-card-header rounded-t-[1.25rem] border-b-0">
               <div class="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <CardTitle>{{ $t('flows.yourFlows') }}</CardTitle>
@@ -250,7 +252,7 @@ function sanitizeScreensForMeta(screens: any[]): any[] {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent class="!p-0">
               <DataTable
                 :items="flows"
                 :columns="columns"
@@ -323,7 +325,8 @@ function sanitizeScreensForMeta(screens: any[]): any[] {
                 </template>
               </DataTable>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </ScrollArea>

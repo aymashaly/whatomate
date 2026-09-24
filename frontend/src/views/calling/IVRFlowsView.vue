@@ -216,99 +216,102 @@ onMounted(async () => {
     />
 
     <!-- Flows Table -->
-    <Card v-if="!fetchError">
-      <CardContent class="pt-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{{ t('calling.name') }}</TableHead>
-              <TableHead>{{ t('calling.account') }}</TableHead>
-              <TableHead>{{ t('calling.status') }}</TableHead>
-              <TableHead>{{ t('calling.options') }}</TableHead>
-              <TableHead class="text-right">{{ t('calling.actions') }}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="flow in store.ivrFlows" :key="flow.id">
-              <TableCell>
-                <div class="cursor-pointer" @click="openEdit(flow)">
-                  <p class="font-medium hover:opacity-80">{{ flow.name }}</p>
-                  <p v-if="flow.description" class="text-sm text-muted-foreground">{{ flow.description }}</p>
-                </div>
-              </TableCell>
-              <TableCell>{{ flow.whatsapp_account }}</TableCell>
-              <TableCell>
-                <div class="flex gap-1.5">
-                  <Badge
-                    :variant="flow.is_active ? 'default' : 'destructive'"
-                    class="cursor-pointer"
-                    role="button"
-                    tabindex="0"
-                    :aria-label="flow.is_active ? t('calling.toggleActiveAriaDisable', { name: flow.name }) : t('calling.toggleActiveAriaEnable', { name: flow.name })"
-                    @click="confirmToggleActive(flow)"
-                    @keydown.enter="confirmToggleActive(flow)"
-                  >
-                    {{ flow.is_active ? t('calling.enabled') : t('calling.disabled') }}
-                  </Badge>
-                  <Badge
-                    v-if="flow.is_active"
-                    :variant="flow.is_call_start ? 'default' : 'outline'"
-                    class="cursor-pointer"
-                    role="button"
-                    tabindex="0"
-                    :aria-label="flow.is_call_start ? t('calling.toggleCallStartAriaDisable', { name: flow.name }) : t('calling.toggleCallStartAriaEnable', { name: flow.name })"
-                    @click="confirmToggleCallStart(flow)"
-                    @keydown.enter="confirmToggleCallStart(flow)"
-                  >
-                    {{ flow.is_call_start ? t('calling.callStart') : t('calling.secondary') }}
-                  </Badge>
-                  <Badge
-                    v-if="flow.is_active && flow.is_outgoing_end"
-                    variant="default"
-                  >
-                    {{ t('calling.outgoingEnd') }}
-                  </Badge>
-                </div>
-              </TableCell>
-              <TableCell>
-                {{ flow.menu?.nodes?.length || 0 }} nodes
-              </TableCell>
-              <TableCell class="text-right">
-                <div class="flex justify-end gap-2">
-                  <IconButton
-                    :icon="Pencil"
-                    :label="t('calling.editFlowAriaLabel', { name: flow.name })"
-                    @click="openEdit(flow)"
-                  />
-                  <IconButton
-                    :icon="Trash2"
-                    :label="t('calling.deleteFlowAriaLabel', { name: flow.name })"
-                    class="text-destructive"
-                    @click="confirmDelete(flow)"
-                  />
-                </div>
-              </TableCell>
-            </TableRow>
-            <TableRow v-if="!store.ivrFlowsLoading && store.ivrFlows.length === 0">
-              <TableCell :colspan="5" class="text-center py-8">
-                <div class="flex flex-col items-center gap-2 text-muted-foreground">
-                  <Phone class="h-8 w-8" />
-                  <p>{{ t('calling.noIVRFlows') }}</p>
-                  <Button variant="outline" size="sm" @click="openCreate">
-                    {{ t('calling.createFirstFlow') }}
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+    <div class="ios-card relative overflow-hidden">
+      <div class="ios-edge-glow" aria-hidden="true" />
+      <Card v-if="!fetchError" class="!border-0 !bg-transparent !shadow-none !rounded-[1.25rem] !hover:!bg-transparent">
+        <CardContent class="pt-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{{ t('calling.name') }}</TableHead>
+                <TableHead>{{ t('calling.account') }}</TableHead>
+                <TableHead>{{ t('calling.status') }}</TableHead>
+                <TableHead>{{ t('calling.options') }}</TableHead>
+                <TableHead class="text-right">{{ t('calling.actions') }}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="flow in store.ivrFlows" :key="flow.id">
+                <TableCell>
+                  <div class="cursor-pointer" @click="openEdit(flow)">
+                    <p class="font-medium hover:opacity-80">{{ flow.name }}</p>
+                    <p v-if="flow.description" class="text-sm text-muted-foreground">{{ flow.description }}</p>
+                  </div>
+                </TableCell>
+                <TableCell>{{ flow.whatsapp_account }}</TableCell>
+                <TableCell>
+                  <div class="flex gap-1.5">
+                    <Badge
+                      :variant="flow.is_active ? 'default' : 'destructive'"
+                      class="cursor-pointer"
+                      role="button"
+                      tabindex="0"
+                      :aria-label="flow.is_active ? t('calling.toggleActiveAriaDisable', { name: flow.name }) : t('calling.toggleActiveAriaEnable', { name: flow.name })"
+                      @click="confirmToggleActive(flow)"
+                      @keydown.enter="confirmToggleActive(flow)"
+                    >
+                      {{ flow.is_active ? t('calling.enabled') : t('calling.disabled') }}
+                    </Badge>
+                    <Badge
+                      v-if="flow.is_active"
+                      :variant="flow.is_call_start ? 'default' : 'outline'"
+                      class="cursor-pointer"
+                      role="button"
+                      tabindex="0"
+                      :aria-label="flow.is_call_start ? t('calling.toggleCallStartAriaDisable', { name: flow.name }) : t('calling.toggleCallStartAriaEnable', { name: flow.name })"
+                      @click="confirmToggleCallStart(flow)"
+                      @keydown.enter="confirmToggleCallStart(flow)"
+                    >
+                      {{ flow.is_call_start ? t('calling.callStart') : t('calling.secondary') }}
+                    </Badge>
+                    <Badge
+                      v-if="flow.is_active && flow.is_outgoing_end"
+                      variant="default"
+                    >
+                      {{ t('calling.outgoingEnd') }}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {{ flow.menu?.nodes?.length || 0 }} nodes
+                </TableCell>
+                <TableCell class="text-right">
+                  <div class="flex justify-end gap-2">
+                    <IconButton
+                      :icon="Pencil"
+                      :label="t('calling.editFlowAriaLabel', { name: flow.name })"
+                      @click="openEdit(flow)"
+                    />
+                    <IconButton
+                      :icon="Trash2"
+                      :label="t('calling.deleteFlowAriaLabel', { name: flow.name })"
+                      class="text-destructive"
+                      @click="confirmDelete(flow)"
+                    />
+                  </div>
+                </TableCell>
+              </TableRow>
+              <TableRow v-if="!store.ivrFlowsLoading && store.ivrFlows.length === 0">
+                <TableCell :colspan="5" class="text-center py-8">
+                  <div class="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Phone class="h-8 w-8" />
+                    <p>{{ t('calling.noIVRFlows') }}</p>
+                    <Button variant="outline" size="sm" @click="openCreate">
+                      {{ t('calling.createFirstFlow') }}
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
 
-        <div v-if="store.ivrFlowsLoading" class="flex justify-center py-8">
-          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-        </div>
-      </CardContent>
-    </Card>
+          <div v-if="store.ivrFlowsLoading" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+          </div>
+        </CardContent>
 
+          </Card>
+    </div>
     <!-- Create Dialog -->
     <Dialog v-model:open="showCreateDialog">
       <DialogContent class="max-w-md">

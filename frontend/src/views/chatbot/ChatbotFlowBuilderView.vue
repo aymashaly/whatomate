@@ -624,7 +624,7 @@ async function saveFlow() {
       const response = await chatbotService.createFlow(data)
       const newFlow = response.data.data || response.data
       toast.success(t('common.createdSuccess', { resource: t('resources.Flow') }))
-      router.replace(`/chatbot/flows/${newFlow.id}/edit`)
+      router.replace(`/app/chatbot/app/flows/${newFlow.id}/edit`)
     } else {
       await chatbotService.updateFlow(flowId.value, data)
       toast.success(t('common.savedSuccess', { resource: t('resources.Flow') }))
@@ -643,13 +643,13 @@ function handleCancel() {
   if (hasUnsavedChanges.value) {
     cancelDialogOpen.value = true
   } else {
-    router.push('/chatbot/flows')
+    router.push('/app/chatbot/app/flows')
   }
 }
 
 function confirmCancel() {
   cancelDialogOpen.value = false
-  router.push('/chatbot/flows')
+  router.push('/app/chatbot/app/flows')
 }
 
 // Webhook headers helpers (flow-level completion)
@@ -761,7 +761,7 @@ onMounted(async () => {
         >
           <template #action>
             <div class="flex gap-2">
-              <Button variant="outline" size="sm" @click="router.push('/chatbot/flows')">
+              <Button variant="outline" size="sm" @click="router.push('/app/chatbot/app/flows')">
                 {{ $t('common.goBack', 'Go back') }}
               </Button>
               <Button size="sm" @click="loadFlow">
